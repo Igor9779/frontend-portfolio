@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WordsMaxLab – Mini-Labor für effektives Wortlernen</title>
+<meta name="description" content="WordsMaxLab unterstützt dich beim effizienten Vokabellernen mit klar strukturierten Listen, Beispielen und Lernmethoden. Ideal für Schüler, Studierende und Erwachsene in der Schweiz." />
+
+    <link rel="canonical" href="https://WordsMaxLab.com/" />
+    <link rel="icon" href="favicon.ico" />
+    <script>
+      function initCookieLoader() {
+        let e = !1;
+        window.addEventListener(
+          "scroll",
+          function () {
+            if (e) return;
+            e = !0;
+            const n = document.createElement("script");
+            (n.src = "./assets/js/cookie.min.js"),
+              (n.async = !0),
+              document.body.appendChild(n);
+          },
+          { once: !0 }
+        );
+      }
+      (window.cookieConfig = {
+        lang: "de",
+        policy: "privacy.html",
+        useOverlay: !1,
+        required: ["essential"],
+        defaultOn: ["performance"],
+        preventClosure: !0,
+        preventScroll: !1,
+      }),
+        window.addEventListener("load", initCookieLoader);
+    </script>
+    <script async="" src="./assets/js/cookie.min.js"></script>
+    <link
+      href="bootstrap_theme/bootstrap.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary w-100 top-0">
+      <div class="container">
+        <a class="navbar-brand fw-bold text-white text-center" href="index.html"
+          >WordsMaxLab</a
+        >
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#mainNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="mainNav"
+        >
+          <ul class="navbar-nav ms-auto text-center">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Startseite</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="about.html">Über uns</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="price.html">Preise</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="contact.html">Kontakt</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="bmodel.html">Geschäftsmodell</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <section id="hero" class="py-5 text-center bg-light">
+      <div class="container py-5">
+        <h1 class="display-4 fw-bold text-dark">
+          WordsMaxLab — Ihr Mini-Labor für Wortschatz
+        </h1>
+        <p class="lead text-secondary mb-4">
+          Praktische Ansätze für strukturiertes Vokabellernen und klare
+          Sprachlogik.
+        </p>
+        <a href="about.html" class="btn btn-warning btn-lg">Mehr erfahren</a>
+      </div>
+    </section>
+    <section id="why2" class="bg-dark text-white py-5">
+      <div class="container">
+        <div class="row align-items-center gy-4">
+          <div class="col-lg-4">
+            <h2 class="fw-bold text-warning h2 mb-3">Warum WordsMaxLab</h2>
+            <p class="text-light opacity-75">
+              Wir kombinieren klare Lernmethoden mit gut verständlichen
+              Werkzeugen zur Erweiterung des Wortschatzes.
+            </p>
+          </div>
+          <div class="col-lg-8">
+            <div class="row g-4">
+              <div class="col-md-6">
+                <div
+                  class="card bg-secondary text-white border-0 h-100 rounded-3 shadow-sm"
+                >
+                  <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Struktur</h5>
+                    <p class="small mb-0">
+                      Die Inhalte sind logisch aufgebaut und leicht
+                      nachvollziehbar.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div
+                  class="card bg-secondary text-white border-0 h-100 rounded-3 shadow-sm"
+                >
+                  <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Lernfortschritt</h5>
+                    <p class="small mb-0">
+                      Einblicke in persönliche Lernschritte und wiederkehrende
+                      Muster.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div
+                  class="card bg-secondary text-white border-0 h-100 rounded-3 shadow-sm"
+                >
+                  <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Klarheit</h5>
+                    <p class="small mb-0">
+                      Jede Einheit ist übersichtlich formuliert und thematisch
+                      sortiert.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div
+                  class="card bg-secondary text-white border-0 h-100 rounded-3 shadow-sm"
+                >
+                  <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Methodik</h5>
+                    <p class="small mb-0">
+                      Alle Lernpfade basieren auf strukturierten, dokumentierten
+                      Abläufen.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="price" class="bg-white py-5 text-center">
+      <div class="container">
+        <h2 class="h6 text-primary text-uppercase mb-1">Module</h2>
+        <h3 class="fw-bold h2 mb-3">Klare Struktur. Klare Stufen.</h3>
+        <p class="text-muted mb-5">
+          WordsMaxLab bietet flexible Module für unterschiedliche Lernziele.
+        </p>
+        <div class="row justify-content-center">
+          <div class="col-md-3 py-3">
+            <div class="border rounded-3 shadow-sm p-4 h-100">
+              <h4 class="fw-bold text-uppercase mb-3">Basis</h4>
+              <p class="text-secondary">Ideal für Einsteiger</p>
+              <h2 class="fw-bold">CHF 19</h2>
+              <a
+                href="contact.html"
+                class="btn btn-outline-primary rounded-pill mt-3"
+                >Kontakt</a
+              >
+            </div>
+          </div>
+          <div class="col-md-3 py-3">
+            <div class="border border-primary rounded-3 shadow p-4 h-100">
+              <h4 class="fw-bold text-uppercase mb-3 text-primary">Standard</h4>
+              <p class="text-secondary">Für regelmäßiges Lernen</p>
+              <h2 class="fw-bold text-primary">CHF 39</h2>
+              <a href="contact.html" class="btn btn-primary rounded-pill mt-3"
+                >Kontakt</a
+              >
+            </div>
+          </div>
+          <div class="col-md-3 py-3">
+            <div class="border border-dark rounded-3 shadow p-4 h-100">
+              <h4 class="fw-bold text-uppercase mb-3">Pro</h4>
+              <p class="text-secondary">Erweiterte Übungen</p>
+              <h2 class="fw-bold">CHF 69</h2>
+              <a href="contact.html" class="btn btn-dark rounded-pill mt-3"
+                >Kontakt</a
+              >
+            </div>
+          </div>
+          <div class="col-md-3 py-3">
+            <div class="border border-warning rounded-3 shadow p-4 h-100">
+              <h4 class="fw-bold text-uppercase text-warning mb-3">
+                Enterprise
+              </h4>
+              <p class="text-secondary">Für Teams und Gruppen</p>
+              <h2 class="fw-bold text-warning">CHF 99</h2>
+              <a
+                href="contact.html"
+                class="btn btn-warning text-dark rounded-pill mt-3"
+                >Kontakt</a
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="bg-white text-secondary py-5">
+      <div class="container py-4">
+        <h2 class="fw-bold text-center mb-5 text-dark">Unsere Schwerpunkte</h2>
+        <div
+          id="carouselContrast"
+          class="carousel slide"
+          data-bs-ride="carousel"
+        >
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <div class="row justify-content-center align-items-center g-4">
+                <div class="col-md-6 text-md-end text-center">
+                  <h3 class="fw-bold h5 text-primary mb-3">Wortschatzaufbau</h3>
+                  <p class="fw-light h6">
+                    Thematische Einordnung und verständliche Beispiele
+                    erleichtern das Lernen.
+                  </p>
+                </div>
+                <div class="col-md-6 text-md-start text-center">
+                  <p class="text-muted">
+                    Klar strukturiert und gut nachvollziehbar.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="row justify-content-center align-items-center g-4">
+                <div class="col-md-6 text-md-end text-center">
+                  <h3 class="fw-bold h5 text-primary mb-3">Lernorganisation</h3>
+                  <p class="fw-light h6">
+                    Kurze, regelmäßige Einheiten unterstützen ein ruhiges
+                    Lernmuster.
+                  </p>
+                </div>
+                <div class="col-md-6 text-md-start text-center">
+                  <p class="text-muted">
+                    Methodische Abläufe für konzentriertes Lernen.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <div class="row justify-content-center align-items-center g-4">
+                <div class="col-md-6 text-md-end text-center">
+                  <h3 class="fw-bold h5 text-primary mb-3">Kommunikation</h3>
+                  <p class="fw-light h6">
+                    Klare sprachliche Ausdrucksformen für ein verständliches
+                    Sprachgefühl.
+                  </p>
+                </div>
+                <div class="col-md-6 text-md-start text-center">
+                  <p class="text-muted">
+                    Klare Formulierungen und verständliche Strukturen.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="carousel-indicators position-relative mt-4">
+            <button
+              type="button"
+              data-bs-target="#carouselContrast"
+              data-bs-slide-to="0"
+              class="active bg-primary"
+            ></button>
+            <button
+              type="button"
+              data-bs-target="#carouselContrast"
+              data-bs-slide-to="1"
+              class="bg-primary"
+            ></button>
+            <button
+              type="button"
+              data-bs-target="#carouselContrast"
+              data-bs-slide-to="2"
+              class="bg-primary"
+            ></button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="tabs1" class="bg-light py-5 text-center">
+      <div class="container">
+        <h2 class="h6 text-primary text-uppercase mb-2">WordsMaxLab</h2>
+        <h3 class="fw-bold h2 mb-4">Hauptbereiche</h3>
+        <p class="text-secondary mb-5">
+          Zentrale Themen, in denen WordsMaxLab Lernende unterstützt.
+        </p>
+        <ul
+          class="nav nav-tabs justify-content-center border-primary-subtle mb-4"
+          id="tabs1List"
+          role="tablist"
+        >
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link fw-medium active"
+              id="tabs1-0-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#tabs1-0"
+              type="button"
+              role="tab"
+            >
+              Wortanalyse
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link fw-medium"
+              id="tabs1-1-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#tabs1-1"
+              type="button"
+              role="tab"
+            >
+              Übungsroutinen
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link fw-medium"
+              id="tabs1-2-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#tabs1-2"
+              type="button"
+              role="tab"
+            >
+              Sprachklarheit
+            </button>
+          </li>
+        </ul>
+        <div class="tab-content text-center pt-3" id="tabs1Content">
+          <div class="tab-pane fade show active" id="tabs1-0" role="tabpanel">
+            <i class="bi bi-bar-chart-line text-primary display-4 mb-3"></i>
+            <p class="text-secondary mx-auto" style="max-width: 600px">
+              WordsMaxLab bietet Einblicke in Wortaufbau, Bedeutungen und
+              Zusammenhänge.
+            </p>
+          </div>
+          <div class="tab-pane fade" id="tabs1-1" role="tabpanel">
+            <i class="bi bi-gear-fill text-primary display-4 mb-3"></i>
+            <p class="text-secondary mx-auto" style="max-width: 600px">
+              Kurze, wiederholbare Aufgaben unterstützen ein regelmäßiges
+              Lernmuster.
+            </p>
+          </div>
+          <div class="tab-pane fade" id="tabs1-2" role="tabpanel">
+            <i class="bi bi-shield-lock text-primary display-4 mb-3"></i>
+            <p class="text-secondary mx-auto" style="max-width: 600px">
+              Wörter werden kontextbezogen erklärt, um die Nutzung verständlich
+              zu halten.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="advantages1" class="bg-light py-5 text-center">
+      <div class="container">
+        <h2 class="h6 text-primary text-uppercase mb-2">Vorteile</h2>
+        <h3 class="fw-bold h2 mb-4">Warum WordsMaxLab</h3>
+        <div class="row justify-content-center">
+          <div class="col-md-4 mb-4">
+            <i class="bi bi-gear-fill text-primary display-5 mb-3"></i>
+            <h5 class="fw-bold">Strukturierte Lerneinheiten</h5>
+            <p class="text-secondary small">
+              Die Inhalte sind logisch gruppiert und folgen einem klaren Aufbau.
+            </p>
+          </div>
+          <div class="col-md-4 mb-4">
+            <i class="bi bi-shield-check text-primary display-5 mb-3"></i>
+            <h5 class="fw-bold">Übersichtliches Material</h5>
+            <p class="text-secondary small">
+              Alle Lernbereiche sind sauber sortiert und leicht zugänglich.
+            </p>
+          </div>
+          <div class="col-md-4 mb-4">
+            <i class="bi bi-lightbulb text-primary display-5 mb-3"></i>
+            <h5 class="fw-bold">Direkte Anwendung</h5>
+            <p class="text-secondary small">
+              Wörter können sofort in kurzen Beispielsätzen getestet werden.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="reviews1" class="bg-light py-5">
+      <div class="container text-center">
+        <h2 class="h6 text-primary text-uppercase mb-2">Erfahrungen</h2>
+        <h3 class="fw-bold h2 mb-4">Rückmeldungen unserer Nutzer</h3>
+        <div class="row justify-content-center">
+          <div class="col-md-4 mb-4">
+            <blockquote class="bg-white rounded-3 shadow-sm p-4 h-100">
+              <p class="mb-3 text-secondary">
+                „WordsMaxLab hat mir geholfen, neue Wörter besser zu ordnen. Die
+                klaren Beispiele sind sehr hilfreich.“
+              </p>
+              <footer class="fw-bold text-dark">— Anna K., Zürich</footer>
+            </blockquote>
+          </div>
+          <div class="col-md-4 mb-4">
+            <blockquote class="bg-white rounded-3 shadow-sm p-4 h-100">
+              <p class="mb-3 text-secondary">
+                „Die kurzen Einheiten passen gut in meinen Alltag. Übersichtlich
+                und angenehm zu nutzen.“
+              </p>
+              <footer class="fw-bold text-dark">— Markus L., Bern</footer>
+            </blockquote>
+          </div>
+          <div class="col-md-4 mb-4">
+            <blockquote class="bg-white rounded-3 shadow-sm p-4 h-100">
+              <p class="mb-3 text-secondary">
+                „Endlich eine strukturierte Sammlung von Wörtern — sehr
+                verständlich aufgebaut.“
+              </p>
+              <footer class="fw-bold text-dark">— Julia R., Luzern</footer>
+            </blockquote>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section id="contact2" class="bg-dark py-5 text-white">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-md-6 col-lg-5">
+            <h2 class="fw-bold text-warning text-center mb-4 text-uppercase">
+              Kontaktformular
+            </h2>
+            <form id="contactForm2">
+              <div class="mb-3">
+                <input
+                  type="text"
+                  class="form-control rounded-1"
+                  placeholder="Name"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <input
+                  type="email"
+                  class="form-control rounded-1"
+                  placeholder="E-Mail"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <textarea
+                  class="form-control rounded-1"
+                  rows="4"
+                  placeholder="Ihre Nachricht..."
+                  required
+                ></textarea>
+              </div>
+              <div class="mb-3 text-start">
+                <label class="small mb-2"
+                  >Wie sollen wir Sie kontaktieren?</label
+                >
+                <br />
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="contactWay"
+                    id="radioEmail"
+                    checked
+                  />
+                  <label class="form-check-label small" for="radioEmail"
+                    >E-Mail</label
+                  >
+                </div>
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="contactWay"
+                    id="radioPhone"
+                  />
+                  <label class="form-check-label small" for="radioPhone"
+                    >Telefon</label
+                  >
+                </div>
+              </div>
+              <div class="form-check mb-4">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="privacyCheck2"
+                  required
+                />
+                <label class="form-check-label small" for="privacyCheck2">
+                  Ich stimme der<a
+                    href="privacy.html"
+                    target="_blank"
+                    class="text-warning"
+                    >Datenschutzerklärung</a
+                  >
+                  zu.
+                </label>
+              </div>
+              <button
+                type="submit"
+                class="btn btn-warning w-100 rounded-pill text-uppercase fw-bold"
+              >
+                Senden
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div
+        class="modal fade"
+        id="thankYouModal2"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content text-center border-0 rounded-4">
+            <div class="modal-body py-5">
+              <i class="bi bi-check-circle text-success display-5 mb-3"></i>
+              <h5 class="fw-bold">Vielen Dank!</h5>
+              <p class="text-muted">
+                Ihre Nachricht wurde übermittelt. Wir melden uns in Kürze.
+              </p>
+              <button
+                type="button"
+                class="btn btn-warning rounded-pill px-4"
+                data-bs-dismiss="modal"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        document
+          .getElementById("contactForm2")
+          .addEventListener("submit", (e) => {
+            e.preventDefault();
+            new bootstrap.Modal(
+              document.getElementById("thankYouModal2")
+            ).show();
+            e.target.reset();
+          });
+      </script>
+    </section>
+    <footer class="bg-dark text-white pt-5 pb-3 border-top border-warning">
+      <div class="container text-center">
+        <a
+          href="index.html"
+          class="text-warning text-decoration-none fw-bold fs-4"
+        >
+          WordsMaxLab
+        </a>
+        <p class="small mt-2 mb-1">
+          <strong>Adresse:</strong> Wankdorffeldstrasse 88, 3014 Bern, Schweiz
+        </p>
+        <p class="small mb-1"><strong>Telefon:</strong> +41315447630</p>
+        <p class="small mb-1">info@wordsmaxlab.com</p>
+        <p class="small mb-3">UID: CHE-332.681.997</p>
+        <div class="d-inline-flex flex-wrap justify-content-center mb-2">
+          <a href="#" class="mx-1 text-white"><i class="bi bi-facebook"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-twitter-x"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-instagram"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-linkedin"></i
+          ></a>
+        </div>
+        <ul class="list-inline small mb-3">
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="about.html">
+              Über uns
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="price.html">
+              Preise
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="contact.html">
+              Kontakt
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="privacy.html">
+              Datenschutz
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="terms.html">
+              Nutzungsbedingungen
+            </a>
+          </li>
+        </ul>
+        <p class="text-secondary small mb-0">
+          © 2025 WordsMaxLab. All rights reserved.
+        </p>
+      </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

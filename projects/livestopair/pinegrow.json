@@ -1,0 +1,175 @@
+{
+  "files": {
+    "index.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.bs5.lib",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "about.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.bs5.lib",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "bmodel.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "contact.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.bs5.lib",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "price.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "privacy.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.bs5.lib",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    },
+    "terms.html": {
+      "frameworks": [
+        "LivesTopAir",
+        "pg.svg.lib",
+        "pg.insight.events",
+        "pg.css.grid",
+        "pg.image.overlay",
+        "pg.code-validator",
+        "pg.project.items",
+        "pg.asset.manager",
+        "bs5",
+        "pg.html",
+        "pine.cone.lib",
+        "pg.components"
+      ]
+    }
+  },
+  "open-pages": [
+    "index.html",
+    "about.html",
+    "bmodel.html",
+    "contact.html",
+    "price.html",
+    "privacy.html",
+    "terms.html"
+  ],
+  "urls": {
+    "index.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "about.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "bmodel.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "contact.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "price.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "privacy.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    },
+    "terms.html": {
+      "open-with-wrapper": false,
+      "open-page-views": [{ "w": 1024, "h": 0 }]
+    }
+  },
+  "active-design-provider": "bs5",
+  "breakpoints": ["576px", "768px", "992px", "1200px", "1400px"],
+  "frameworks": [
+    "LivesTopAir",
+    "pg.svg.lib",
+    "pg.insight.events",
+    "pg.css.grid",
+    "pg.image.overlay",
+    "pg.code-validator",
+    "pg.project.items",
+    "pg.asset.manager",
+    "bs5",
+    "pg.html",
+    "pine.cone.lib",
+    "pg.components"
+  ]
+}

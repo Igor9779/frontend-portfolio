@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WorksAllsDay — Contact</title>
+    <link rel="icon" href="favicon.ico" />
+
+    <link
+      href="bootstrap_theme/bootstrap.css"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary w-100 top-0">
+      <div class="container">
+        <a class="navbar-brand fw-bold text-white text-center" href="index.html"
+          >WorksAllsDay</a
+        >
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#mainNav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div
+          class="collapse navbar-collapse justify-content-center"
+          id="mainNav"
+        >
+          <ul class="navbar-nav ms-auto text-center">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Startseite</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="about.html">Über uns</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="price.html">Preise</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="contact.html">Kontakt</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="bmodel.html">Geschäftsmodell</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    <section id="contact2" class="bg-dark py-5 text-white">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-md-6 col-lg-5">
+            <h2 class="fw-bold text-warning text-center mb-4 text-uppercase">
+              Kontaktformular
+            </h2>
+            <form id="contactForm2">
+              <div class="mb-3">
+                <input
+                  type="text"
+                  class="form-control rounded-1"
+                  placeholder="Name"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <input
+                  type="email"
+                  class="form-control rounded-1"
+                  placeholder="E-Mail"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <textarea
+                  class="form-control rounded-1"
+                  rows="4"
+                  placeholder="Ihre Nachricht..."
+                  required
+                ></textarea>
+              </div>
+              <div class="mb-3 text-start">
+                <label class="small mb-2"
+                  >Wie sollen wir Sie kontaktieren?</label
+                >
+                <br />
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="contactWay"
+                    id="radioEmail"
+                    checked
+                  />
+                  <label class="form-check-label small" for="radioEmail"
+                    >E-Mail</label
+                  >
+                </div>
+                <div class="form-check form-check-inline">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="contactWay"
+                    id="radioPhone"
+                  />
+                  <label class="form-check-label small" for="radioPhone"
+                    >Telefon</label
+                  >
+                </div>
+              </div>
+              <div class="form-check mb-4">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="privacyCheck2"
+                  required
+                />
+                <label class="form-check-label small" for="privacyCheck2">
+                  Ich stimme der<a
+                    href="privacy.html"
+                    target="_blank"
+                    class="text-warning"
+                    >Datenschutzerklärung</a
+                  >
+                  zu.
+                </label>
+              </div>
+              <button
+                type="submit"
+                class="btn btn-warning w-100 rounded-pill text-uppercase fw-bold"
+              >
+                Senden
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div
+        class="modal fade"
+        id="thankYouModal2"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content text-center border-0 rounded-4">
+            <div class="modal-body py-5">
+              <i class="bi bi-check-circle text-success display-5 mb-3"></i>
+              <h5 class="fw-bold">Vielen Dank!</h5>
+              <p class="text-muted">
+                Ihre Nachricht wurde übermittelt. Wir melden uns in Kürze.
+              </p>
+              <button
+                type="button"
+                class="btn btn-warning rounded-pill px-4"
+                data-bs-dismiss="modal"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        document
+          .getElementById("contactForm2")
+          .addEventListener("submit", (e) => {
+            e.preventDefault();
+            new bootstrap.Modal(
+              document.getElementById("thankYouModal2")
+            ).show();
+            e.target.reset();
+          });
+      </script>
+    </section>
+    <section class="py-5 bg-light">
+      <div class="container">
+        <div class="row justify-content-center text-center mb-4">
+          <div class="col-lg-8">
+            <h2 class="fw-bold text-primary mb-3">
+              Wie wir Ihren Arbeitsalltag unterstützen
+            </h2>
+            <p class="text-secondary fs-5">
+              WorksAllsDay stellt ruhige, klar gegliederte Hinweise bereit, die
+              helfen, den Arbeitstag übersichtlicher zu gestalten. Wenn Sie
+              Orientierung zu Abläufen, Fokusphasen oder kleinen
+              Strukturelementen suchen, finden Sie bei uns verständliche
+              Anhaltspunkte.
+            </p>
+          </div>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+          <div class="col-md-4">
+            <div class="p-4 bg-white shadow-sm rounded-3 h-100 text-center">
+              <i class="bi bi-wind text-primary display-5 mb-3"></i>
+              <h5 class="fw-bold mb-2">Tägliche Impulse</h5>
+              <p class="text-muted small">
+                Wenn Sie kurze Hinweise zu bestimmten Arbeitssituationen
+                benötigen oder Anregungen für mehr Klarheit im Tagesablauf
+                suchen, finden Sie bei uns passende Inputs.
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="p-4 bg-white shadow-sm rounded-3 h-100 text-center">
+              <i class="bi bi-calendar-check text-primary display-5 mb-3"></i>
+              <h5 class="fw-bold mb-2">Routinen & Struktur</h5>
+              <p class="text-muted small">
+                Wir zeigen überschaubare Schritte und kleine Einheiten, die sich
+                gut in hybride Arbeitsformen, Büroalltag oder Homeoffice
+                integrieren lassen.
+              </p>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="p-4 bg-white shadow-sm rounded-3 h-100 text-center">
+              <i class="bi bi-stars text-primary display-5 mb-3"></i>
+              <h5 class="fw-bold mb-2">Anregungen & Themenideen</h5>
+              <p class="text-muted small">
+                Wenn Sie Anmerkungen oder Themenwünsche haben, freuen wir uns
+                über Rückmeldungen, die uns beim Ausbau unserer Arbeitsinhalte
+                unterstützen.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="bg-dark text-white pt-5 pb-3 border-top border-warning">
+      <div class="container text-center">
+        <a
+          href="index.html"
+          class="text-warning text-decoration-none fw-bold fs-4"
+        >
+          WorksAllsDay
+        </a>
+        <p class="small mt-2 mb-1">
+          <strong>Adresse:</strong> u. Zollgasse 81, 3072 Ostermundigen, Schweiz
+        </p>
+        <p class="small mb-1"><strong>Telefon:</strong> +41313523131</p>
+        <p class="small mb-1">info@worksallsday.com</p>
+        <p class="small mb-3">UID: CHE-873.120.559</p>
+        <div class="d-inline-flex flex-wrap justify-content-center mb-2">
+          <a href="#" class="mx-1 text-white"><i class="bi bi-facebook"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-twitter-x"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-instagram"></i></a
+          ><a href="#" class="mx-1 text-white"
+            ><i class="bi bi-linkedin"></i
+          ></a>
+        </div>
+        <ul class="list-inline small mb-3">
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="about.html">
+              Über uns
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="price.html">
+              Preise
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="contact.html">
+              Kontakt
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="privacy.html">
+              Datenschutz
+            </a>
+          </li>
+          <li class="list-inline-item mx-2">
+            <a class="text-reset text-decoration-none" href="terms.html">
+              Nutzungsbedingungen
+            </a>
+          </li>
+        </ul>
+        <p class="text-secondary small mb-0">
+          © 2025 WorksAllsDay. All rights reserved.
+        </p>
+      </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
