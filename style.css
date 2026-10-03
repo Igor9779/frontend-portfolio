@@ -271,6 +271,14 @@ h2 {
   letter-spacing: 0.12em;
 }
 
+.project-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
 h3 {
   margin-bottom: 16px;
 
@@ -431,6 +439,15 @@ footer {
 
   .project-preview-image {
     min-height: 220px;
+  }
+
+  .project-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-actions .button {
+    text-align: center;
   }
 
   .project-content {
