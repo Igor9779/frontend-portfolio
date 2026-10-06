@@ -2,7 +2,7 @@
 
 /* Keep the standalone Bootstrap demos out of Tailwind's source scanning. */
 @source "./";
-@source "../index.html";
+@source "../components";
 
 @custom-variant mobile (@media (max-width: 760px));
 @custom-variant small-mobile (@media (max-width: 480px));

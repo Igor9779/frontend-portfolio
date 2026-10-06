@@ -2,10 +2,10 @@ import type { Project } from '../types/project'
 
 interface ProjectCardProps {
   project: Project
-  index: number
+  index?: number
 }
 
-export function ProjectCard({ project, index }: ProjectCardProps) {
+export function ProjectCard({ project, index = 0 }: ProjectCardProps) {
   return (
     <article
       className="group mb-7 grid grid-cols-2 overflow-hidden rounded-[20px] border border-[#ddd] bg-white transition-[transform,translate,box-shadow,border-color] duration-300 ease-[ease] hover:border-[#d2d2d2] hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] motion-safe:animate-project-appear motion-safe:hover:-translate-y-[6px] motion-reduce:transition-none mobile:grid-cols-1"

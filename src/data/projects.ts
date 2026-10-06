@@ -6,7 +6,7 @@ export const projects: Project[] = [
     type: 'AI TOOLS DIRECTORY',
     description:
       'AI tools discovery platform powered by the FreeSerp API with search, categories, sorting, pagination and EN/UA localization.',
-    image: `${import.meta.env.BASE_URL}assets/ai-radar.png`,
+    image: '/assets/ai-radar.png',
     imageAlt: 'AI Radar project preview',
     tags: ['React', 'TypeScript', 'Vite', 'Axios'],
     links: [
@@ -25,7 +25,7 @@ export const projects: Project[] = [
     type: 'NODE.JS / TELEGRAM BOT',
     description:
       'Node.js application for tracking World of Tanks Blitz session statistics using the official Wargaming API. Tracks completed battles, calculates session performance and sends updates through a Telegram bot.',
-    image: `${import.meta.env.BASE_URL}assets/wot.jpg`,
+    image: '/assets/wot.jpg',
     imageAlt: 'WoT Blitz Session Tracker project preview',
     tags: ['Node.js', 'TypeScript', 'SQLite', 'Telegram', 'REST API'],
     links: [
@@ -44,7 +44,7 @@ export const projects: Project[] = [
     type: 'REACT / LANGUAGE LEARNING',
     description:
       'React application for learning German vocabulary through a structured 30-day program. Includes daily word lists, pagination, bookmarks with localStorage persistence and progress completion.',
-    image: `${import.meta.env.BASE_URL}assets/deutch-word-app.png`,
+    image: '/assets/deutch-word-app.png',
     imageAlt: 'Deutsch Word App project preview',
     tags: ['React', 'JavaScript', 'React Router', 'Vite', 'LocalStorage'],
     links: [
@@ -63,7 +63,7 @@ export const projects: Project[] = [
     type: 'REACT / SITE GENERATOR',
     description:
       'React-based internal tool for generating ready-to-use websites from reusable content sections. Supports single and multi-page generation, dynamic site configuration, random section selection and ZIP export with SEO files and assets.',
-    image: `${import.meta.env.BASE_URL}assets/whites-generator.png`,
+    image: '/assets/whites-generator.png',
     imageAlt: 'Whites Generator project preview',
     tags: ['React', 'JavaScript', 'JSZip', 'Bootstrap', 'SEO'],
     links: [
@@ -82,7 +82,7 @@ export const projects: Project[] = [
     type: 'REACT / DEVELOPER TOOLS',
     description:
       'Web toolkit for working with domain and content data. Includes a text counter with duplicate and long-line detection, JSON generation, persistent notepad, copy helpers and report handling through a Vercel API.',
-    image: `${import.meta.env.BASE_URL}assets/domens-tools.png`,
+    image: '/assets/domens-tools.png',
     imageAlt: 'Domens Tools project preview',
     tags: ['React', 'TypeScript', 'Vite', 'Axios', 'Vercel'],
     links: [
@@ -107,7 +107,7 @@ export const projects: Project[] = [
     links: [
       {
         label: 'View project →',
-        href: `${import.meta.env.BASE_URL}projects/livestopair/index.html`,
+        href: '/projects/livestopair/index.html',
       },
     ],
   },
@@ -122,7 +122,7 @@ export const projects: Project[] = [
     links: [
       {
         label: 'View project →',
-        href: `${import.meta.env.BASE_URL}projects/pagesmaxair/index.html`,
+        href: '/projects/pagesmaxair/index.html',
       },
     ],
   },
@@ -137,7 +137,7 @@ export const projects: Project[] = [
     links: [
       {
         label: 'View project →',
-        href: `${import.meta.env.BASE_URL}projects/worksallsday/index.html`,
+        href: '/projects/worksallsday/index.html',
       },
     ],
   },
@@ -152,7 +152,7 @@ export const projects: Project[] = [
     links: [
       {
         label: 'View project →',
-        href: `${import.meta.env.BASE_URL}projects/pathstopnow/index.html`,
+        href: '/projects/pathstopnow/index.html',
       },
     ],
   },
@@ -161,13 +161,13 @@ export const projects: Project[] = [
     type: 'EDUCATIONAL LANDING',
     description:
       'Landing website for a compact vocabulary-learning product with structured modules.',
-    image: `${import.meta.env.BASE_URL}assets/wordsmaxlab.png`,
+    image: '/assets/wordsmaxlab.png',
     imageAlt: 'WordsMaxLab project preview',
     tags: ['HTML', 'CSS', 'JavaScript'],
     links: [
       {
         label: 'View project →',
-        href: `${import.meta.env.BASE_URL}projects/wordsmaxlab/index.html`,
+        href: '/projects/wordsmaxlab/index.html',
       },
     ],
   },

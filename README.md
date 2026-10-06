@@ -160,7 +160,7 @@ Landing website for a compact vocabulary-learning product with structured module
 
 ## Portfolio
 
-The portfolio itself is a single-page application built with **React**, **TypeScript**, **Vite** and **Tailwind CSS**. ESLint checks the application and its configuration. The existing design, content, project order and responsive breakpoints at 760px and 480px are preserved.
+The portfolio uses the **Next.js App Router**, **React**, **TypeScript** and **Tailwind CSS**. Its homepage and reusable components are Server Components. ESLint checks the application and its configuration, and Next.js generates route types before the TypeScript check. The existing design, content, project order and responsive breakpoints at 760px and 480px are preserved.
 
 It contains:
 
@@ -181,7 +181,7 @@ npm install
 npm run dev
 ```
 
-Vite prints the local development URL, usually `http://localhost:5173`.
+Next.js serves the development application at `http://localhost:3000`.
 
 Check TypeScript and ESLint:
 
@@ -190,32 +190,35 @@ npm run typecheck
 npm run lint
 ```
 
-Build and preview the production site:
+Build and start the production application:
 
 ```bash
 npm run build
-npm run preview
+npm start
 ```
 
-The production build is written to `dist/`, which is ignored by Git. Deploy the contents of this directory to a static host.
+The production build is written to `.next/`, which is ignored by Git. Deploy with a Next.js-compatible host, or build and run `npm start` on a Node.js server. Keep `public/` alongside the application so the images and standalone demos remain available.
 
 ## Structure
 
 ```text
 src/
+  app/
+    layout.tsx      Root layout, metadata, favicon and viewport
+    page.tsx        Homepage; supplies project data to components
+    globals.css     Tailwind setup, base rules and appearance keyframes
+    admin/page.tsx  Temporary CMS placeholder
+    cms-demo/page.tsx  Temporary public demo placeholder
   components/       Hero, Projects, ProjectCard and Footer
-  data/projects.ts  Typed data for all ten projects
+  data/projects.ts  Typed local data for all ten projects
   types/project.ts  Project and link interfaces
-  App.tsx
-  main.tsx
-  index.css         Tailwind setup, base rules and appearance keyframes
 public/
   assets/           Original portfolio preview images
   projects/         Five unchanged standalone multi-page demos
   favicon.png
 ```
 
-The five demo websites keep their original HTML, CSS/Bootstrap, JavaScript, SEO files and internal directory structures. Vite serves them directly during development and copies them to `dist/projects/` during the build. They are not React applications and do not inherit the portfolio's Tailwind styles.
+The five demo websites keep their original HTML, CSS/Bootstrap, JavaScript, SEO files and internal directory structures. Next.js serves them directly from `public/projects/` during development and production. `next.config.ts` rewrites their directory URLs to the existing `index.html` files and preserves the trailing slash so relative assets and navigation work. They are not React applications and do not inherit the portfolio's Tailwind styles.
 
 Their browser URLs remain:
 
@@ -225,4 +228,18 @@ Their browser URLs remain:
 - `/projects/pathstopnow/`
 - `/projects/wordsmaxlab/`
 
-Local images, demo links and the favicon respect Vite's base path. For hosting under a subdirectory, build with the matching base, for example `npm run build -- --base=/frontend-portfolio/`, and serve `dist/` from that path. External project links and Unsplash previews retain their original URLs.
+The application currently uses root-relative URLs for local previews, demo links and the favicon. External project links and Unsplash previews retain their original URLs. Project previews use ordinary `<img>` elements to preserve their current sizing, cropping, responsive behavior and lazy loading without adding image-optimization configuration.
+
+## Routes and Future CMS Work
+
+- `/` — existing portfolio with all ten projects.
+- `/admin` — temporary page: “Portfolio CMS — coming next.”
+- `/cms-demo` — temporary page: “Portfolio CMS Demo — coming next.”
+
+The two CMS routes contain placeholder text only and are excluded from search indexing. They are public at this stage; `/admin` will need authentication before real administrative functionality is added.
+
+The homepage currently reads `src/data/projects.ts` and passes the resulting list into `Projects`. `ProjectCard` receives each project through props and does not depend on a data source. A future server-side query can replace the homepage's local data import without rewriting the cards. The current homepage is prerendered; caching and revalidation should be chosen when live database data is introduced.
+
+Supabase, authentication, CMS operations, AI, GitHub imports and screenshot generation are future work. No integration is implemented or required now.
+
+`.env.example` contains empty placeholders for future integrations. The current application does not read or require them. Actual environment files are ignored by Git; keep future service-role keys and API tokens on the server.

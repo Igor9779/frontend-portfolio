@@ -1,7 +1,11 @@
-import { projects } from '../data/projects'
+import type { Project } from '../types/project'
 import { ProjectCard } from './ProjectCard'
 
-export function Projects() {
+interface ProjectsProps {
+  projects: Project[]
+}
+
+export function Projects({ projects }: ProjectsProps) {
   return (
     <section aria-labelledby="projects-heading" className="py-20 mobile:py-[60px]">
       <div className="mb-8">
