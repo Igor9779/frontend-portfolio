@@ -222,20 +222,27 @@ src/
     page.tsx        Homepage; supplies project data to components
     error.tsx       Minimal error boundary with retry
     globals.css     Tailwind setup, base rules and appearance keyframes
-    admin/layout.tsx  CMS header, navigation and responsive workspace
-    admin/page.tsx  Server-loaded, read-only CMS dashboard
+    admin/(protected)/layout.tsx  Authorized CMS header and workspace
+    admin/(protected)/page.tsx  Server-loaded, read-only CMS dashboard
+    admin/login/page.tsx  Email/password administrator sign-in
+    admin/actions.ts  Authentication-only sign-in and sign-out actions
     cms-demo/page.tsx  Temporary public demo placeholder
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
   lib/
     projects.ts     Server-only query and database-to-UI mapping
-    supabase/server.ts  Typed public-read client and environment validation
+    auth.ts         Verified identity and admin_users authorization
+    supabase/public.ts  Anonymous portfolio client, independent of sessions
+    supabase/server.ts  Per-request, cookie-based authenticated SSR client
+    supabase/config.ts  Environment validation and shared client options
+  proxy.ts          Next.js 16 admin session refresh
   types/project.ts  Project and link interfaces
   types/admin-project.ts  Management model with IDs, positions and form fields
   types/database.ts  Existing Supabase row schema and read-only client types
 supabase/
   seed-projects.sql  One-time SQL seed for all ten original projects
   grant-projects-read.sql  SELECT-only repair for the observed permission failure
+  grant-admin-users-read.sql  Authenticated SELECT-only membership grant repair
 public/
   assets/           Original portfolio preview images
   projects/         Five unchanged standalone multi-page demos
@@ -258,9 +265,10 @@ The application currently uses root-relative URLs for local previews, demo links
 
 - `/` — portfolio backed by the ten visible Supabase projects.
 - `/admin` — responsive, read-only project management interface.
+- `/admin/login` — private administrator sign-in; no registration.
 - `/cms-demo` — temporary page: “Portfolio CMS Demo — coming next.”
 
-The CMS routes are excluded from search indexing. `/admin` is public and has no database mutation capability; `/cms-demo` remains a text-only placeholder. Administrator authentication and authorization must be established before enabling persistent administrative operations.
+The CMS routes are excluded from search indexing. The portfolio and `/cms-demo` are public. `/admin` requires Supabase Auth and membership in `public.admin_users`, and has no database mutation capability. `/cms-demo` remains a text-only placeholder.
 
 The homepage awaits `getProjects()` from `src/lib/projects.ts`, then passes frontend `Project` objects into `Projects`. `ProjectCard` receives each project through props and does not depend on Supabase. The server maps database column names to the existing card model and button labels. Only visible rows are selected, ordered by `position` ascending and then UUID `id` ascending for deterministic ties. RLS remains the database's access boundary.
 
@@ -268,13 +276,13 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-Authentication, persistent CMS operations, Storage, AI, GitHub imports and screenshot generation remain future work. No browser database client, API endpoint, mutation Server Action or database write functionality is implemented. The client type intentionally disallows inserts and updates during this read-only stage.
+Persistent CMS operations, Storage, AI, GitHub imports and screenshot generation remain future work. No browser database client, API endpoint, project mutation Server Action or database write functionality is implemented. The client type intentionally disallows inserts and updates during this read-only stage. The only Server Actions handle authentication.
 
 ## Read-only CMS Interface (Stage 4)
 
-`/admin` calls `getAdminProjects()` on the server and passes camelCase `AdminProject` objects into `AdminProjects`. Both queries share the existing Supabase client and a single row-reading helper. The public `getProjects()` always adds `visible = true`; the admin query requests every row available to the current client, with the same deterministic position/ID ordering and uncached fetching.
+`/admin` calls `getAdminProjects()` on the server and passes camelCase `AdminProject` objects into `AdminProjects`. Both queries share a single row-reading helper. Public `getProjects()` always uses an anonymous client and adds `visible = true`, even for a signed-in administrator. The admin query first calls `requireAdmin()`, then requests all projects with that user's authenticated client. Both queries use deterministic position/ID ordering and uncached fetching.
 
-The client is still anonymous. Current RLS exposes only visible projects, so the dashboard shows the ten published projects and cannot discover hidden ones. There is no privileged credential or policy change. A future authenticated client with appropriate access can extend the admin read path without changing the public query or visual components.
+The existing administrator SELECT policy allows the authenticated dashboard to read both published and hidden projects. There is no privileged credential or policy change. The ten original projects remain published.
 
 The interface includes:
 
@@ -285,9 +293,23 @@ The interface includes:
 - Local Move Up/Down previews, an explicit preview notice and Reset order. Refreshing restores database order. Clear search before reordering so moves always correspond to the complete list.
 - Native modal dialogs with focus containment, Escape/backdrop dismissal, focus restoration and scrollable forms on smaller viewports.
 
-All interactions are non-persistent. There are no INSERT, UPDATE or DELETE calls, write policies, service-role keys, mutation endpoints or Server Actions. `/cms-demo`, the public portfolio and the static demo files remain separate from the management interface.
+All project interactions are non-persistent. There are no INSERT, UPDATE or DELETE calls, write policies, service-role keys, mutation endpoints or project mutation Server Actions. `/cms-demo`, the public portfolio and the static demo files remain separate from the management interface.
 
-Stage 5 must establish a secure authorization path and appropriate RLS/write privileges before enabling CRUD, define server-side field/URL validation, replace the disabled form/delete actions with authorized operations, refresh returned data after successful changes, and retain stable UUIDs. Ordering is currently a local preview; persistent sorting remains a separate later stage. Local preview state must not be treated as saved data.
+Stage 6 CRUD must call `requireAdmin()` inside every Server Action, use the returned user-scoped Supabase client, establish appropriate administrator-only RLS/write privileges, define mutation types and server-side field/URL validation, refresh returned data after successful changes, and retain stable UUIDs. The layout alone is not an authorization boundary for actions. Ordering remains a local preview; it must not be treated as saved data.
+
+## Administrator Authentication (Stage 5)
+
+Authentication uses `@supabase/ssr` and SDK-managed cookies. Sign-in and sign-out run in Server Actions; credentials and tokens are never returned to components or logged. There is no browser Supabase client or localStorage session. Cookies are HttpOnly, SameSite=Lax and Secure in production. Use HTTPS for deployed production environments.
+
+`src/proxy.ts` matches only `/admin/:path*` and calls `getClaims()` to refresh sessions before rendering. Refreshed cookies are copied to both the request and response; SDK cache headers are preserved, and admin responses use `Cache-Control: private, no-store`. Authenticated pages are dynamic and auth/project fetches are uncached.
+
+`requireAdmin()` is shared by the protected route-group layout and `getAdminProjects()`. It verifies the current user with `getUser()` and selects that user's own `admin_users` row. Missing sessions redirect to `/admin/login`; authenticated non-members are denied, and verification errors fail closed with generic messages. Login repeats these checks after `signInWithPassword()` and signs out rejected sessions. An already authorized administrator visiting `/admin/login` is redirected to `/admin`.
+
+Sign out uses Supabase's local scope to end the current session, removes its SDK cookies and redirects to `/admin/login`. Other devices are unaffected. Errors remain generic and allow retry.
+
+Public registration is intentionally unavailable: there is no registration route, form or `signUp()` call. Administrators must be created manually in Supabase Auth and added manually to `public.admin_users`. The existing own-membership and administrator project SELECT policies must already exist; this stage creates no tables, policies or project write permissions. `.env.example` remains limited to the URL and publishable key, with no privileged credentials.
+
+An RLS SELECT policy also requires the underlying table SELECT privilege. If sign-in reports “Unable to verify access” and the server logs `Administrator membership lookup failed (42501)`, inspect and apply `supabase/grant-admin-users-read.sql` in the Supabase SQL Editor. It grants SELECT on `admin_users` only to `authenticated`, with no anonymous grant, write grant or RLS/policy change. Existing RLS still limits users to their own membership row. Diagnostics log only a sanitized code, never identities, credentials or raw database errors. See [Supabase's permission error guidance](https://supabase.com/docs/guides/troubleshooting/database-api-42501-errors).
 
 ## Seed the Existing Projects
 

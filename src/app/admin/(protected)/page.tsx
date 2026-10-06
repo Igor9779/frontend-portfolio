@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
-import { AdminProjects } from '../../components/admin/AdminProjects'
-import { getAdminProjects } from '../../lib/projects'
+import { AdminProjects } from '../../../components/admin/AdminProjects'
+import { getAdminProjects } from '../../../lib/projects'
 
 export const metadata: Metadata = {
   title: 'Portfolio CMS — Igor Bondarenko',

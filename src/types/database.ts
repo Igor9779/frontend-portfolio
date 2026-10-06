@@ -1,4 +1,4 @@
-export interface DatabaseProject {
+export type DatabaseProject = {
   id: string
   title: string
   category: string
@@ -17,12 +17,18 @@ export interface DatabaseProject {
   updated_at: string
 }
 
-// This stage exposes only reads. Define mutation types when the CMS is added.
+// Only SELECT is available. Define mutation types when CRUD is authorized.
 export interface Database {
   public: {
     Tables: {
       projects: {
         Row: DatabaseProject
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      admin_users: {
+        Row: { user_id: string; created_at: string }
         Insert: never
         Update: never
         Relationships: []

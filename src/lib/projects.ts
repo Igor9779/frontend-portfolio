@@ -3,7 +3,10 @@ import 'server-only'
 import type { DatabaseProject } from '../types/database'
 import type { AdminProject } from '../types/admin-project'
 import type { Project, ProjectLink } from '../types/project'
-import { supabase } from './supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database'
+import { requireAdmin } from './auth'
+import { supabase } from './supabase/public'
 
 type ProjectRow = Pick<
   DatabaseProject,
@@ -40,8 +43,8 @@ function toProject(row: ProjectRow): Project {
   }
 }
 
-async function readProjectRows({ visibleOnly }: { visibleOnly: boolean }): Promise<ProjectRow[]> {
-  const query = supabase
+async function readProjectRows(client: SupabaseClient<Database>, { visibleOnly }: { visibleOnly: boolean }): Promise<ProjectRow[]> {
+  const query = client
     .from('projects')
     .select('id, title, category, short_description, description, preview_url, github_url, production_url, telegram_url, technologies, position, visible')
     .order('position', { ascending: true })
@@ -65,14 +68,14 @@ async function readProjectRows({ visibleOnly }: { visibleOnly: boolean }): Promi
 }
 
 export async function getProjects(): Promise<Project[]> {
-  const rows = await readProjectRows({ visibleOnly: true })
+  const rows = await readProjectRows(supabase, { visibleOnly: true })
   return rows.map(toProject)
 }
 
-// Read every row available to the current client. Anonymous RLS still excludes
-// hidden rows; authenticated all-project access is a later, separate stage.
+// Verified administrators read visible and hidden rows using their own session.
 export async function getAdminProjects(): Promise<AdminProject[]> {
-  const rows = await readProjectRows({ visibleOnly: false })
+  const { supabase: adminClient } = await requireAdmin()
+  const rows = await readProjectRows(adminClient, { visibleOnly: false })
   return rows.map((row) => ({
     id: row.id,
     title: row.title,

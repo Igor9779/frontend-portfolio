@@ -81,7 +81,7 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
           {normalizedQuery && <button type="button" onClick={() => setQuery('')} className="mt-4 min-h-9 rounded-md border border-zinc-200 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-zinc-900">Clear search</button>}
         </div>
       )}
-      <p className="mt-5 text-[11px] leading-5 text-zinc-500">Showing projects currently available to this public preview. Hidden projects require administrator access.</p>
+      <p className="mt-5 text-[11px] leading-5 text-zinc-500">Showing published and hidden projects available to your administrator account.</p>
 
       {editor && <ProjectForm key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} onClose={() => setEditor(null)} />}
       {deleting && <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} />}
