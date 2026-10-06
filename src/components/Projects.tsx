@@ -20,6 +20,10 @@ export function Projects({ projects }: ProjectsProps) {
         </h2>
       </div>
 
+      {projects.length === 0 && (
+        <p className="text-[#666]">No projects to display yet.</p>
+      )}
+
       {projects.map((project, index) => (
         <ProjectCard key={project.title} project={project} index={index} />
       ))}

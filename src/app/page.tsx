@@ -1,9 +1,13 @@
+import { connection } from 'next/server'
 import { Hero } from '../components/Hero'
 import { Projects } from '../components/Projects'
 import { Footer } from '../components/Footer'
-import { projects } from '../data/projects'
+import { getProjects } from '../lib/projects'
 
-export default function HomePage() {
+export default async function HomePage() {
+  await connection()
+  const projects = await getProjects()
+
   return (
     <>
       <Hero />
