@@ -98,7 +98,7 @@ Responsive multi-page landing website with navigation, pricing and contact pages
 
 **Tech:** HTML, CSS, Bootstrap, JavaScript
 
-- [View Project](projects/livestopair/)
+- [View Project](public/projects/livestopair/)
 
 ---
 
@@ -108,7 +108,7 @@ Landing website for digital pages and templates focused on planning and organiza
 
 **Tech:** HTML, CSS, JavaScript
 
-- [View Project](projects/pagesmaxair/)
+- [View Project](public/projects/pagesmaxair/)
 
 ---
 
@@ -118,7 +118,7 @@ Landing website for digital workday structure and productivity templates.
 
 **Tech:** HTML, CSS, JavaScript
 
-- [View Project](projects/worksallsday/)
+- [View Project](public/projects/worksallsday/)
 
 ---
 
@@ -128,7 +128,7 @@ Landing website presenting structured paths and productivity-oriented digital mo
 
 **Tech:** HTML, CSS, JavaScript
 
-- [View Project](projects/pathstopnow/)
+- [View Project](public/projects/pathstopnow/)
 
 ---
 
@@ -138,9 +138,9 @@ Landing website for a compact vocabulary-learning product with structured module
 
 **Tech:** HTML, CSS, JavaScript
 
-- [View Project](projects/wordsmaxlab/)
+- [View Project](public/projects/wordsmaxlab/)
 
-## Tech Stack
+## Technologies Used in the Featured Projects
 
 - HTML5
 - CSS3
@@ -160,7 +160,7 @@ Landing website for a compact vocabulary-learning product with structured module
 
 ## Portfolio
 
-The portfolio itself is a lightweight static website built with HTML and CSS.
+The portfolio itself is a single-page application built with **React**, **TypeScript**, **Vite** and **Tailwind CSS**. ESLint checks the application and its configuration. The existing design, content, project order and responsive breakpoints at 760px and 480px are preserved.
 
 It contains:
 
@@ -174,8 +174,55 @@ It contains:
 
 ## Run Locally
 
-Clone the repository:
+Use Node.js 20.19+, 22.13+ or 24+ (Node.js 22.13+ recommended).
 
 ```bash
-git clone https://github.com/Igor9779/frontend-portfolio.git
+npm install
+npm run dev
 ```
+
+Vite prints the local development URL, usually `http://localhost:5173`.
+
+Check TypeScript and ESLint:
+
+```bash
+npm run typecheck
+npm run lint
+```
+
+Build and preview the production site:
+
+```bash
+npm run build
+npm run preview
+```
+
+The production build is written to `dist/`, which is ignored by Git. Deploy the contents of this directory to a static host.
+
+## Structure
+
+```text
+src/
+  components/       Hero, Projects, ProjectCard and Footer
+  data/projects.ts  Typed data for all ten projects
+  types/project.ts  Project and link interfaces
+  App.tsx
+  main.tsx
+  index.css         Tailwind setup, base rules and appearance keyframes
+public/
+  assets/           Original portfolio preview images
+  projects/         Five unchanged standalone multi-page demos
+  favicon.png
+```
+
+The five demo websites keep their original HTML, CSS/Bootstrap, JavaScript, SEO files and internal directory structures. Vite serves them directly during development and copies them to `dist/projects/` during the build. They are not React applications and do not inherit the portfolio's Tailwind styles.
+
+Their browser URLs remain:
+
+- `/projects/livestopair/`
+- `/projects/pagesmaxair/`
+- `/projects/worksallsday/`
+- `/projects/pathstopnow/`
+- `/projects/wordsmaxlab/`
+
+Local images, demo links and the favicon respect Vite's base path. For hosting under a subdirectory, build with the matching base, for example `npm run build -- --base=/frontend-portfolio/`, and serve `dist/` from that path. External project links and Unsplash previews retain their original URLs.

@@ -1,0 +1,52 @@
+@import "tailwindcss" source(none);
+
+/* Keep the standalone Bootstrap demos out of Tailwind's source scanning. */
+@source "./";
+@source "../index.html";
+
+@custom-variant mobile (@media (max-width: 760px));
+@custom-variant small-mobile (@media (max-width: 480px));
+
+@theme {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --background-image-hero-grid:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(60, 130, 255, 0.18), transparent 35%),
+    radial-gradient(circle at 20% 80%, rgba(120, 80, 255, 0.12), transparent 30%);
+
+  --animate-project-appear: project-appear 0.7s ease both;
+
+  @keyframes project-appear {
+    from {
+      opacity: 0;
+      transform: translateY(25px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color: #171717;
+    background: #f7f7f5;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    line-height: 1.5;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
