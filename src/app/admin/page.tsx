@@ -1,16 +1,15 @@
 import type { Metadata } from 'next'
+import { connection } from 'next/server'
+import { AdminProjects } from '../../components/admin/AdminProjects'
+import { getAdminProjects } from '../../lib/projects'
 
 export const metadata: Metadata = {
   title: 'Portfolio CMS — Igor Bondarenko',
   robots: { index: false, follow: false },
 }
 
-export default function AdminPage() {
-  return (
-    <main className="mx-auto w-[calc(100%-40px)] max-w-[1080px] py-20 small-mobile:w-[calc(100%-28px)]">
-      <h1 className="text-2xl leading-[1.5] font-bold">
-        Portfolio CMS — coming next.
-      </h1>
-    </main>
-  )
+export default async function AdminPage() {
+  await connection()
+  const projects = await getAdminProjects()
+  return <AdminProjects initialProjects={projects} />
 }

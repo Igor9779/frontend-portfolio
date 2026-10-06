@@ -160,7 +160,7 @@ Landing website for a compact vocabulary-learning product with structured module
 
 ## Portfolio
 
-The portfolio uses the **Next.js App Router**, **React**, **TypeScript**, **Tailwind CSS** and **Supabase**. Its homepage and reusable portfolio components are Server Components; only the error boundary uses a Client Component. ESLint checks the application and its configuration, and Next.js generates route types before the TypeScript check. The existing design, content, project order and responsive breakpoints at 760px and 480px are preserved.
+The portfolio uses the **Next.js App Router**, **React**, **TypeScript**, **Tailwind CSS** and **Supabase**. Its homepage and portfolio components are Server Components. The admin layout and data loading also run on the server; the CMS interactions and error boundary use Client Components. ESLint checks the application and its configuration, and Next.js generates route types before the TypeScript check. The existing public design, content, project order and responsive breakpoints at 760px and 480px are preserved.
 
 It contains:
 
@@ -222,13 +222,16 @@ src/
     page.tsx        Homepage; supplies project data to components
     error.tsx       Minimal error boundary with retry
     globals.css     Tailwind setup, base rules and appearance keyframes
-    admin/page.tsx  Temporary CMS placeholder
+    admin/layout.tsx  CMS header, navigation and responsive workspace
+    admin/page.tsx  Server-loaded, read-only CMS dashboard
     cms-demo/page.tsx  Temporary public demo placeholder
   components/       Hero, Projects, ProjectCard and Footer
+    admin/          Project list, shared form, technology input and dialogs
   lib/
     projects.ts     Server-only query and database-to-UI mapping
     supabase/server.ts  Typed public-read client and environment validation
   types/project.ts  Project and link interfaces
+  types/admin-project.ts  Management model with IDs, positions and form fields
   types/database.ts  Existing Supabase row schema and read-only client types
 supabase/
   seed-projects.sql  One-time SQL seed for all ten original projects
@@ -254,10 +257,10 @@ The application currently uses root-relative URLs for local previews, demo links
 ## Routes and Future CMS Work
 
 - `/` — portfolio backed by the ten visible Supabase projects.
-- `/admin` — temporary page: “Portfolio CMS — coming next.”
+- `/admin` — responsive, read-only project management interface.
 - `/cms-demo` — temporary page: “Portfolio CMS Demo — coming next.”
 
-The two CMS routes contain placeholder text only and are excluded from search indexing. They are public at this stage; `/admin` will need authentication before real administrative functionality is added.
+The CMS routes are excluded from search indexing. `/admin` is public and has no database mutation capability; `/cms-demo` remains a text-only placeholder. Administrator authentication and authorization must be established before enabling persistent administrative operations.
 
 The homepage awaits `getProjects()` from `src/lib/projects.ts`, then passes frontend `Project` objects into `Projects`. `ProjectCard` receives each project through props and does not depend on Supabase. The server maps database column names to the existing card model and button labels. Only visible rows are selected, ordered by `position` ascending and then UUID `id` ascending for deterministic ties. RLS remains the database's access boundary.
 
@@ -265,7 +268,26 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-Authentication, CMS operations, Storage, AI, GitHub imports and screenshot generation remain future work. No browser database client, API endpoint or mutation functionality is implemented. The client type intentionally disallows inserts and updates during this read-only stage.
+Authentication, persistent CMS operations, Storage, AI, GitHub imports and screenshot generation remain future work. No browser database client, API endpoint, mutation Server Action or database write functionality is implemented. The client type intentionally disallows inserts and updates during this read-only stage.
+
+## Read-only CMS Interface (Stage 4)
+
+`/admin` calls `getAdminProjects()` on the server and passes camelCase `AdminProject` objects into `AdminProjects`. Both queries share the existing Supabase client and a single row-reading helper. The public `getProjects()` always adds `visible = true`; the admin query requests every row available to the current client, with the same deterministic position/ID ordering and uncached fetching.
+
+The client is still anonymous. Current RLS exposes only visible projects, so the dashboard shows the ten published projects and cannot discover hidden ones. There is no privileged credential or policy change. A future authenticated client with appropriate access can extend the admin read path without changing the public query or visual components.
+
+The interface includes:
+
+- Immediate local search by title, category and technology, with a no-results state.
+- Compact rows with previews, published/hidden status, positions, technologies and available project links.
+- A shared Add/Edit dialog with all current project fields, technology chips and a local visibility toggle. Closing or cancelling discards the draft; Save is disabled.
+- A delete confirmation whose final Delete action is disabled. No project is removed locally or remotely.
+- Local Move Up/Down previews, an explicit preview notice and Reset order. Refreshing restores database order. Clear search before reordering so moves always correspond to the complete list.
+- Native modal dialogs with focus containment, Escape/backdrop dismissal, focus restoration and scrollable forms on smaller viewports.
+
+All interactions are non-persistent. There are no INSERT, UPDATE or DELETE calls, write policies, service-role keys, mutation endpoints or Server Actions. `/cms-demo`, the public portfolio and the static demo files remain separate from the management interface.
+
+Stage 5 must establish a secure authorization path and appropriate RLS/write privileges before enabling CRUD, define server-side field/URL validation, replace the disabled form/delete actions with authorized operations, refresh returned data after successful changes, and retain stable UUIDs. Ordering is currently a local preview; persistent sorting remains a separate later stage. Local preview state must not be treated as saved data.
 
 ## Seed the Existing Projects
 

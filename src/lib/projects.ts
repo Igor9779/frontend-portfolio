@@ -1,22 +1,27 @@
 import 'server-only'
 
 import type { DatabaseProject } from '../types/database'
+import type { AdminProject } from '../types/admin-project'
 import type { Project, ProjectLink } from '../types/project'
 import { supabase } from './supabase/server'
 
-type PortfolioRow = Pick<
+type ProjectRow = Pick<
   DatabaseProject,
+  | 'id'
   | 'title'
   | 'category'
+  | 'short_description'
   | 'description'
   | 'preview_url'
   | 'github_url'
   | 'production_url'
   | 'telegram_url'
   | 'technologies'
+  | 'position'
+  | 'visible'
 >
 
-function toProject(row: PortfolioRow): Project {
+function toProject(row: ProjectRow): Project {
   const links: ProjectLink[] = []
 
   // Preserve the portfolio's existing button labels and order.
@@ -35,13 +40,16 @@ function toProject(row: PortfolioRow): Project {
   }
 }
 
-export async function getProjects(): Promise<Project[]> {
-  const { data, error } = await supabase
+async function readProjectRows({ visibleOnly }: { visibleOnly: boolean }): Promise<ProjectRow[]> {
+  const query = supabase
     .from('projects')
-    .select('title, category, description, preview_url, github_url, production_url, telegram_url, technologies')
-    .eq('visible', true)
+    .select('id, title, category, short_description, description, preview_url, github_url, production_url, telegram_url, technologies, position, visible')
     .order('position', { ascending: true })
     .order('id', { ascending: true })
+
+  if (visibleOnly) query.eq('visible', true)
+
+  const { data, error } = await query
     .abortSignal(AbortSignal.timeout(10_000))
 
   if (error) {
@@ -53,5 +61,30 @@ export async function getProjects(): Promise<Project[]> {
   }
 
   if (!data) throw new Error('Supabase returned no project data. Expected an array from public.projects.')
-  return data.map(toProject)
+  return data
+}
+
+export async function getProjects(): Promise<Project[]> {
+  const rows = await readProjectRows({ visibleOnly: true })
+  return rows.map(toProject)
+}
+
+// Read every row available to the current client. Anonymous RLS still excludes
+// hidden rows; authenticated all-project access is a later, separate stage.
+export async function getAdminProjects(): Promise<AdminProject[]> {
+  const rows = await readProjectRows({ visibleOnly: false })
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    shortDescription: row.short_description,
+    description: row.description,
+    previewUrl: row.preview_url,
+    githubUrl: row.github_url,
+    productionUrl: row.production_url,
+    telegramUrl: row.telegram_url,
+    technologies: row.technologies,
+    position: row.position,
+    visible: row.visible,
+  }))
 }
