@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { AdminProject } from '../../types/admin-project'
 import { AdminProjectCard } from './AdminProjectCard'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
@@ -11,11 +11,31 @@ type Editor = { mode: 'add' } | { mode: 'edit'; project: AdminProject }
 
 export function AdminProjects({ initialProjects }: { initialProjects: AdminProject[] }) {
   const searchId = useId()
-  const [projects, setProjects] = useState(initialProjects)
+  const addButton = useRef<HTMLButtonElement>(null)
+  const focusAfterDelete = useRef(false)
+  // Server props stay authoritative after CRUD revalidation. Only the ordering
+  // preview is kept locally, so refreshed titles/visibility cannot become stale.
+  const [previewOrder, setPreviewOrder] = useState<string[] | null>(null)
   const [query, setQuery] = useState('')
   const [editor, setEditor] = useState<Editor | null>(null)
   const [deleting, setDeleting] = useState<AdminProject | null>(null)
   const [orderNotice, setOrderNotice] = useState('')
+  const [mutationNotice, setMutationNotice] = useState('')
+
+  useEffect(() => {
+    // Wait for the dialog's cleanup before moving focus outside the modal.
+    if (!deleting && focusAfterDelete.current) {
+      addButton.current?.focus()
+      focusAfterDelete.current = false
+    }
+  }, [deleting])
+
+  const projectById = new Map(initialProjects.map((project) => [project.id, project]))
+  const previewIds = previewOrder?.filter((id) => projectById.has(id))
+  const projects = previewIds
+    ? [...previewIds.map((id) => projectById.get(id)!), ...initialProjects.filter((project) => !previewIds.includes(project.id))]
+        .map((project, position) => ({ ...project, position }))
+    : initialProjects
   const normalizedQuery = query.trim().toLowerCase()
   const matchingProjects = projects.filter((project) => [project.title, project.category, ...project.technologies].some((value) => value.toLowerCase().includes(normalizedQuery)))
   const orderChanged = projects.some((project, index) => project.id !== initialProjects[index]?.id)
@@ -30,8 +50,25 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
     if (!project || !neighbor) return
     reordered[index] = neighbor
     reordered[nextIndex] = project
-    setProjects(reordered.map((item, position) => ({ ...item, position })))
+    const nextOrder = reordered.map((item) => item.id)
+    setPreviewOrder(nextOrder.every((id, position) => id === initialProjects[position]?.id) ? null : nextOrder)
     setOrderNotice(`${project.title} moved to position ${nextIndex}. This order is a local preview.`)
+  }
+
+  function saved(project: AdminProject) {
+    setEditor(null)
+    setPreviewOrder(null)
+    setQuery('')
+    setOrderNotice('')
+    setMutationNotice(`${project.title} saved. Showing the saved project order.`)
+  }
+
+  function deleted() {
+    focusAfterDelete.current = true
+    setDeleting(null)
+    setPreviewOrder(null)
+    setOrderNotice('')
+    setMutationNotice('Project deleted. Showing the saved project order.')
   }
 
   return (
@@ -41,13 +78,14 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
           <h1 id="admin-projects-heading" className="text-[28px] leading-tight font-semibold tracking-[-0.03em]">Projects</h1>
           <p className="mt-2 text-sm text-zinc-500">Manage projects displayed in your portfolio.</p>
         </div>
-        <button type="button" onClick={() => setEditor({ mode: 'add' })} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"><Icon name="plus" />Add project</button>
+        <button ref={addButton} type="button" onClick={() => setEditor({ mode: 'add' })} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"><Icon name="plus" />Add project</button>
       </div>
 
       <div className="mb-6 flex items-start gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 text-xs leading-5 text-zinc-500">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-        <p><span className="font-medium text-zinc-700">Read-only preview.</span> Explore the forms and project order. Changes are not saved.</p>
+        <p><span className="font-medium text-zinc-700">Administrator workspace.</span> Add, edit and delete portfolio projects. Move Up/Down changes are preview-only.</p>
       </div>
+      {mutationNotice && <p role="status" className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">{mutationNotice}</p>}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-[360px]">
@@ -62,7 +100,7 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
       {orderChanged && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
           <p>Order changes are preview-only. Refreshing restores the saved order.</p>
-          <button type="button" onClick={() => { setProjects(initialProjects); setOrderNotice('Original project order restored.') }} className="min-h-8 rounded px-2 font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-amber-800">Reset order</button>
+          <button type="button" onClick={() => { setPreviewOrder(null); setOrderNotice('Original project order restored.') }} className="min-h-8 rounded px-2 font-medium underline underline-offset-2 focus-visible:outline-amber-800">Reset order</button>
         </div>
       )}
       <p role="status" className="sr-only">{orderNotice}</p>
@@ -83,8 +121,8 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
       )}
       <p className="mt-5 text-[11px] leading-5 text-zinc-500">Showing published and hidden projects available to your administrator account.</p>
 
-      {editor && <ProjectForm key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} onClose={() => setEditor(null)} />}
-      {deleting && <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} />}
+      {editor && <ProjectForm key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} onClose={() => setEditor(null)} onSaved={saved} />}
+      {deleting && <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} onDeleted={deleted} />}
     </section>
   )
 }

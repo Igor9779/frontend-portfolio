@@ -24,6 +24,25 @@ type ProjectRow = Pick<
   | 'visible'
 >
 
+export const projectColumns = 'id, title, category, short_description, description, preview_url, github_url, production_url, telegram_url, technologies, position, visible'
+
+export function toAdminProject(row: ProjectRow): AdminProject {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    shortDescription: row.short_description,
+    description: row.description,
+    previewUrl: row.preview_url,
+    githubUrl: row.github_url,
+    productionUrl: row.production_url,
+    telegramUrl: row.telegram_url,
+    technologies: row.technologies,
+    position: row.position,
+    visible: row.visible,
+  }
+}
+
 function toProject(row: ProjectRow): Project {
   const links: ProjectLink[] = []
 
@@ -46,7 +65,7 @@ function toProject(row: ProjectRow): Project {
 async function readProjectRows(client: SupabaseClient<Database>, { visibleOnly }: { visibleOnly: boolean }): Promise<ProjectRow[]> {
   const query = client
     .from('projects')
-    .select('id, title, category, short_description, description, preview_url, github_url, production_url, telegram_url, technologies, position, visible')
+    .select(projectColumns)
     .order('position', { ascending: true })
     .order('id', { ascending: true })
 
@@ -76,18 +95,5 @@ export async function getProjects(): Promise<Project[]> {
 export async function getAdminProjects(): Promise<AdminProject[]> {
   const { supabase: adminClient } = await requireAdmin()
   const rows = await readProjectRows(adminClient, { visibleOnly: false })
-  return rows.map((row) => ({
-    id: row.id,
-    title: row.title,
-    category: row.category,
-    shortDescription: row.short_description,
-    description: row.description,
-    previewUrl: row.preview_url,
-    githubUrl: row.github_url,
-    productionUrl: row.production_url,
-    telegramUrl: row.telegram_url,
-    technologies: row.technologies,
-    position: row.position,
-    visible: row.visible,
-  }))
+  return rows.map(toAdminProject)
 }

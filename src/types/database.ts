@@ -17,14 +17,20 @@ export type DatabaseProject = {
   updated_at: string
 }
 
-// Only SELECT is available. Define mutation types when CRUD is authorized.
+// Edits are limited to form fields and server-derived metadata. IDs, creation
+// time, source and saved position are deliberately absent from Update.
+export type DatabaseProjectUpdate = Partial<Pick<DatabaseProject,
+  | 'title' | 'category' | 'short_description' | 'description' | 'preview_url'
+  | 'github_url' | 'production_url' | 'telegram_url' | 'technologies' | 'visible'
+  | 'github_repo' | 'updated_at'
+>>
 export interface Database {
   public: {
     Tables: {
       projects: {
         Row: DatabaseProject
-        Insert: never
-        Update: never
+        Insert: DatabaseProject
+        Update: DatabaseProjectUpdate
         Relationships: []
       }
       admin_users: {
