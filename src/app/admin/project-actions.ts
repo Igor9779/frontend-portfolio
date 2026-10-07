@@ -12,6 +12,7 @@ import { findGithubProject } from '../../lib/github-projects'
 import { parseGithubRepository } from '../../lib/github-repository'
 import type { ProjectDeleteResult, ProjectSaveResult } from '../../types/project-form'
 import type { AdminProject } from '../../types/admin-project'
+import type { DatabaseProject } from '../../types/database'
 
 function logFailure(operation: 'create' | 'update' | 'delete', error?: { code: string }) {
   const code = error && /^[A-Z0-9]{5,12}$/.test(error.code) ? ` (${error.code})` : ''
@@ -66,20 +67,6 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
       if (existing.error) return { success: false, message: 'Unable to save the project. Please try again.' }
       if (existing.exists) return { success: false, message: 'This GitHub repository has already been added.', errors: { githubUrl: 'This GitHub repository has already been added.' } }
     }
-    const { data: last, error: positionError } = await supabase
-      .from('projects').select('position').order('position', { ascending: false })
-      .limit(1).abortSignal(AbortSignal.timeout(10_000)).maybeSingle()
-    if (positionError) {
-      logFailure('create', positionError)
-      return { success: false, message: 'Unable to save the project. Please try again.' }
-    }
-    const position = (last?.position ?? -1) + 1
-    if (!Number.isSafeInteger(position) || position > 2_147_483_647) {
-      logFailure('create')
-      return { success: false, message: 'Unable to save the project. Please try again.' }
-    }
-    // Concurrent additions may share a position; the existing UUID secondary
-    // ordering is deterministic. Persistent ordering/locking is a later stage.
     const fields = databaseFields(validated.project)
     fields.github_repo = githubRepo
     if (validated.file) {
@@ -88,14 +75,30 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
       uploaded = upload.previewUrl
       fields.preview_url = uploaded
     }
-    const { data, error } = await supabase.from('projects').insert({
-      ...fields,
-      id,
-      source: importedRepo ? 'github' : 'manual',
-      position,
-      created_at: fields.updated_at,
-    }).select(projectColumns).abortSignal(AbortSignal.timeout(10_000)).single()
+    // The authenticated RPC atomically normalizes every existing project to
+    // 1..N and inserts at 0. PostgreSQL controls positions and new timestamps;
+    // no separate INSERT or client/server position allocation can race it.
+    const { data, error } = await supabase.rpc('create_project_first', {
+      p_project_id: id,
+      p_title: fields.title,
+      p_category: fields.category,
+      p_short_description: fields.short_description,
+      p_description: fields.description,
+      p_preview_url: fields.preview_url,
+      p_github_url: fields.github_url,
+      p_production_url: fields.production_url,
+      p_telegram_url: fields.telegram_url,
+      p_technologies: fields.technologies,
+      p_visible: fields.visible,
+      p_source: importedRepo ? 'github' : 'manual',
+      p_github_repo: githubRepo,
+    }).abortSignal(AbortSignal.timeout(10_000)).single<DatabaseProject>()
     if (error || !data) {
+      // A concurrent create may pass the early read guard. The RPC rechecks
+      // under its lock; map only its known duplicate error, never raw details.
+      if (error?.code === '23505' && error.message === 'This GitHub repository has already been added.') {
+        return { success: false, message: 'This GitHub repository has already been added.', errors: { githubUrl: 'This GitHub repository has already been added.' } }
+      }
       logFailure('create', error ?? undefined)
       return { success: false, message: 'Unable to save the project. Please try again.' }
     }

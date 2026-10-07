@@ -78,7 +78,7 @@ function image(format = 'png') {
 }
 const storedPath = `projects/${fixtureId}/preview-413fe32f-09dc-4f71-a9f6-0a3b6e5fa16a.png`
 const storedUrl = `${storageOrigin}/storage/v1/object/public/${previewBucket}/${storedPath}`
-function setup({ allowed = true, rows = [row], error = null, throws = false, failOperation = '', uploadFails = false, removeFails = false, commitAndThrow = '', stalePreview = false } = {}) {
+function setup({ allowed = true, rows = [row], error = null, throws = false, failOperation = '', rpcError = null, missingRpcData = false, uploadFails = false, removeFails = false, commitAndThrow = '', stalePreview = false } = {}) {
   const state = { rows: structuredClone(rows), queries: [], revalidated: [], authorizations: 0, error, storageOps: [], objects: new Map(), events: [] }
   const supabase = { from(table) {
     assert.equal(table, 'projects', 'Mutations must never query admin_users for writes.')
@@ -90,14 +90,8 @@ function setup({ allowed = true, rows = [row], error = null, throws = false, fai
       if (state.error || failOperation === query.operation) return { data: null, error: { code: '42501', message: 'PRIVATE_FIXTURE_DATABASE_DETAIL' } }
       if (query.operation === 'read') {
         if (query.repository !== null) return { data: state.rows.find(item => item.github_repo?.toLowerCase() === query.repository) ?? null, error: null }
-        if (query.columns !== 'position') return { data: state.rows.find(item => Object.entries(query.filters).every(([key, value]) => item[key] === value)) ?? null, error: null }
-        const highest = [...state.rows].sort((a, b) => b.position - a.position)[0]
-        return { data: highest ? { position: highest.position } : null, error: null }
-      }
-      if (query.operation === 'insert') {
-        state.rows.push(query.payload)
-        if (commitAndThrow === 'insert') throw new Error('PRIVATE_FIXTURE_NETWORK_DETAIL')
-        return { data: query.payload, error: null }
+        assert.notEqual(query.columns, 'position', 'Create must not allocate a position with a separate read.')
+        return { data: state.rows.find(item => Object.entries(query.filters).every(([key, value]) => item[key] === value)) ?? null, error: null }
       }
       if (stalePreview && query.operation === 'update') return { data: null, error: null }
       const found = state.rows.find(item => Object.entries(query.filters).every(([key, value]) => item[key] === value))
@@ -113,10 +107,33 @@ function setup({ allowed = true, rows = [row], error = null, throws = false, fai
       eq(column, value) { assert.ok(['id', 'preview_url'].includes(column)); query.filters[column] = value; return builder },
       ilike(column, value) { assert.equal(column, 'github_repo'); query.repository = value.replace(/\\([\\%_])/g, '$1').toLowerCase(); return builder },
       is(column, value) { assert.equal(column, 'preview_url'); query.filters[column] = value; return builder },
-      insert(payload) { query.operation = 'insert'; query.payload = payload; return builder },
+      insert() { assert.fail('Create must use create_project_first, never a separate INSERT.') },
       update(payload) { query.operation = 'update'; query.payload = payload; return builder },
       delete() { query.operation = 'delete'; return builder },
       async single() { return execute() }, async maybeSingle() { return execute() },
+    }
+    return builder
+  }, rpc(name, payload) {
+    assert.equal(name, 'create_project_first')
+    const builder = {
+      abortSignal() { return builder },
+      async single() {
+        state.queries.push({ operation: 'rpc', name, payload: structuredClone(payload) })
+        state.events.push('database:rpc')
+        if (throws) throw new Error('PRIVATE_FIXTURE_NETWORK_DETAIL')
+        if (rpcError) return { data: null, error: rpcError }
+        if (state.error || failOperation === 'rpc') return { data: null, error: { code: '42501', message: 'PRIVATE_FIXTURE_DATABASE_DETAIL' } }
+        if (missingRpcData) return { data: null, error: null }
+        // Model the already-verified RPC contract. These are action/transport
+        // tests, not a substitute for PostgreSQL transaction or RLS tests.
+        const now = new Date().toISOString()
+        const created = Object.fromEntries(Object.entries(payload).map(([key, value]) => [key === 'p_project_id' ? 'id' : key.slice(2), value]))
+        Object.assign(created, { position: 0, created_at: now, updated_at: now })
+        const previous = [...state.rows].sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+        state.rows = [created, ...previous.map((project, index) => ({ ...project, position: index + 1 }))]
+        if (commitAndThrow === 'rpc') throw new Error('PRIVATE_FIXTURE_NETWORK_DETAIL')
+        return { data: created, error: null }
+      },
     }
     return builder
   }, storage: { from(bucket) {
@@ -212,19 +229,59 @@ test('each action independently denies unauthorized calls before validation or q
   assert.deepEqual(state.queries, [])
 })
 
-test('server controls create UUID, source, append position, repository and timestamps', async () => {
+test('create uses create_project_first with a server UUID and explicit fields, never position or timestamps', async () => {
   const state = setup({ rows: [{ ...row, position: 50 }] })
   const result = await actions.createProject(form({ ...input, id: fixtureId, source: 'attacker', position: -1, github_repo: 'attacker/repo', created_at: '2000', updated_at: '2000' }))
   assert.equal(result.success, true)
-  const created = state.rows.at(-1)
+  const created = state.rows[0]
   assert.equal(isProjectId(created.id), true)
   assert.notEqual(created.id, fixtureId)
   assert.equal(created.source, 'manual')
-  assert.equal(created.position, 51)
+  assert.equal(created.position, 0)
+  assert.equal(result.project.position, 0)
   assert.equal(created.github_repo, 'example/repository')
   assert.equal(created.created_at, created.updated_at)
   assert.ok(Number.isFinite(Date.parse(created.created_at)))
+  const calls = state.queries.filter(query => query.operation === 'rpc')
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].name, 'create_project_first')
+  assert.deepEqual(Object.keys(calls[0].payload).sort(), [
+    'p_project_id', 'p_title', 'p_category', 'p_short_description', 'p_description', 'p_preview_url',
+    'p_github_url', 'p_production_url', 'p_telegram_url', 'p_technologies', 'p_visible', 'p_source', 'p_github_repo',
+  ].sort())
+  assert.equal(calls[0].payload.p_project_id, created.id)
+  assert.equal(state.queries.some(query => query.operation === 'insert' || query.columns === 'position'), false)
   assert.deepEqual(state.revalidated, ['/admin', '/'])
+})
+
+test('create first normalizes previous positions while preserving relative order, hidden rows and every other field', async () => {
+  const rows = [
+    { ...row, id: '00000000-0000-0000-0000-000000000003', position: 90, preview_url: storedUrl },
+    { ...row, id: '00000000-0000-0000-0000-000000000002', position: 7, visible: false },
+    { ...row, id: '00000000-0000-0000-0000-000000000001', position: 7, preview_url: '/assets/original.png' },
+  ]
+  const state = setup({ rows })
+  const expected = [...rows].sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+  const result = await actions.createProject(form())
+  assert.equal(result.success, true)
+  assert.equal(state.rows[0].id, result.project.id)
+  assert.deepEqual(state.rows.map(project => project.position), [0, 1, 2, 3])
+  assert.deepEqual(state.rows.slice(1), expected.map((project, index) => ({ ...project, position: index + 1 })))
+  assert.deepEqual(state.storageOps, [])
+})
+
+test('RPC failures or missing result never report successful creation or revalidate routes', async () => {
+  const logging = mock.method(console, 'error', () => {})
+  try {
+    for (const options of [{ failOperation: 'rpc' }, { missingRpcData: true }]) {
+      const state = setup(options)
+      const result = await actions.createProject(form())
+      assert.equal(result.success, false)
+      assert.equal(result.message, 'Unable to save the project. Please try again.')
+      assert.deepEqual(state.rows, [row])
+      assert.deepEqual(state.revalidated, [])
+    }
+  } finally { logging.mock.restore() }
 })
 
 test('empty-table creates start at position zero; invalid input makes no query', async () => {
@@ -235,7 +292,7 @@ test('empty-table creates start at position zero; invalid input makes no query',
   assert.equal(state.rows[0].position, 0)
 })
 
-test('final create guard blocks mixed-case duplicate repositories before upload or INSERT', async () => {
+test('final create guard blocks mixed-case duplicate repositories before upload or RPC', async () => {
   const state = setup({ rows: [{ ...row, github_repo: 'Example/Repository' }] })
   const result = await actions.createProject(form(input, image()))
   assert.equal(result.success, false)
@@ -251,8 +308,32 @@ test('reviewed import uses server-derived github source and repository; arbitrar
   const data = form({ ...input, githubUrl: 'https://github.com/Example/Repository', source: 'ai' })
   data.set('importedGithubRepo', 'example/repository')
   assert.equal((await actions.createProject(data)).success, true)
-  assert.equal(state.rows.at(-1).source, 'github')
-  assert.equal(state.rows.at(-1).github_repo, 'example/repository')
+  assert.equal(state.rows[0].source, 'github')
+  assert.equal(state.rows[0].github_repo, 'example/repository')
+})
+
+test('an RPC duplicate caught after the early guard returns friendly feedback and cleans its new preview', async () => {
+  const state = setup({ rpcError: { code: '23505', message: 'This GitHub repository has already been added.' } })
+  const result = await actions.createProject(form(input, image()))
+  assert.equal(result.success, false)
+  assert.equal(result.message, 'This GitHub repository has already been added.')
+  assert.equal(result.errors.githubUrl, result.message)
+  assert.deepEqual(state.rows, [row])
+  assert.equal(state.objects.size, 0)
+  assert.deepEqual(state.storageOps.map(operation => operation.operation), ['upload', 'remove'])
+  assert.deepEqual(state.revalidated, [])
+})
+
+test('unrelated RPC constraint errors never expose raw details or masquerade as GitHub duplicates', async () => {
+  const logging = mock.method(console, 'error', () => {})
+  try {
+    const state = setup({ rpcError: { code: '23505', message: 'PRIVATE_DATABASE_CONSTRAINT_DETAIL' } })
+    const result = await actions.createProject(form())
+    assert.equal(result.success, false)
+    assert.equal(result.message, 'Unable to save the project. Please try again.')
+    assert.deepEqual(state.rows, [row])
+    assert.deepEqual(state.revalidated, [])
+  } finally { logging.mock.restore() }
 })
 
 test('mismatched import provenance fails before queries or uploads', async () => {
@@ -403,19 +484,19 @@ test('create with preview uploads once with a generated path and stores the publ
   const state = setup()
   const result = await actions.createProject(form({ ...input, id: fixtureId, previewUrl: 'ignored' }, image(), 'keep'))
   assert.equal(result.success, true)
-  const created = state.rows.at(-1)
+  const created = state.rows[0]
   assert.notEqual(created.id, fixtureId)
   assert.equal(managedPreviewPath(created.preview_url, created.id, storageOrigin), state.storageOps[0].path)
   assert.equal(state.objects.size, 1)
   assert.equal(state.storageOps[0].options.contentType, 'image/png')
   assert.equal(state.storageOps[0].options.upsert, false)
-  assert.ok(state.events.indexOf('storage:upload') < state.events.indexOf('database:insert'))
+  assert.ok(state.events.indexOf('storage:upload') < state.events.indexOf('database:rpc'))
 })
 
-test('failed INSERT compensates by deleting only the newly uploaded object', async () => {
+test('failed create RPC compensates by deleting only the newly uploaded object', async () => {
   const logging = mock.method(console, 'error', () => {})
   try {
-    const state = setup({ failOperation: 'insert' })
+    const state = setup({ failOperation: 'rpc' })
     assert.equal((await actions.createProject(form(input, image()))).success, false)
     assert.deepEqual(state.rows, [row])
     assert.equal(state.objects.size, 0)
@@ -431,7 +512,7 @@ test('upload failure returns a safe error, attempts cleanup and never inserts a 
     const result = await actions.createProject(form(input, image()))
     assert.equal(result.success, false)
     assert.ok(!JSON.stringify(result).includes('PRIVATE_STORAGE'))
-    assert.ok(!state.queries.some(query => query.operation === 'insert'))
+    assert.ok(!state.queries.some(query => query.operation === 'rpc'))
     assert.deepEqual(state.storageOps.map(operation => operation.operation), ['upload', 'remove'])
     assert.deepEqual(state.rows, [row])
   } finally { logging.mock.restore() }
@@ -527,9 +608,9 @@ test('cleanup preserves managed objects still referenced by another project', as
 test('interrupted database responses never delete a newly uploaded object already referenced by a committed row', async () => {
   const logging = mock.method(console, 'error', () => {})
   try {
-    for (const operation of ['insert', 'update']) {
+    for (const operation of ['rpc', 'update']) {
       const state = setup({ commitAndThrow: operation })
-      const result = operation === 'insert' ? await actions.createProject(form(input, image())) : await actions.updateProject(fixtureId, form(input, image()))
+      const result = operation === 'rpc' ? await actions.createProject(form(input, image())) : await actions.updateProject(fixtureId, form(input, image()))
       assert.equal(result.success, false)
       assert.equal(state.objects.size, 1)
       assert.equal(state.storageOps.filter(item => item.operation === 'remove').length, 0)

@@ -42,6 +42,24 @@ export interface Database {
     }
     Views: Record<string, never>
     Functions: {
+      create_project_first: {
+        Args: {
+          p_project_id: string
+          p_title: string
+          p_category: string
+          p_short_description: string | null
+          p_description: string
+          p_preview_url: string | null
+          p_github_url: string | null
+          p_production_url: string | null
+          p_telegram_url: string | null
+          p_technologies: string[]
+          p_visible: boolean
+          p_source: 'manual' | 'github'
+          p_github_repo: string | null
+        }
+        Returns: DatabaseProject
+      }
       reorder_projects: {
         Args: { ordered_ids: string[]; expected_order: string[] }
         Returns: undefined

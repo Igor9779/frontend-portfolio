@@ -35,7 +35,14 @@ export function Dialog({ children, onClose, titleId, descriptionId, compact = fa
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       className={`m-auto max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-zinc-950/35 ${compact ? 'max-w-md' : 'max-w-[720px]'}`}
-      onCancel={(event) => { event.preventDefault(); if (!busy) onClose() }}
+      onCancel={(event) => {
+        // File inputs emit a bubbling cancel event when their native picker is
+        // dismissed (or the same file is chosen). Only this dialog's own cancel
+        // event requests dismissal; closing for a child event destroys drafts.
+        if (event.target !== event.currentTarget) return
+        event.preventDefault()
+        if (!busy) onClose()
+      }}
       onKeyDown={(event) => {
         if (event.key !== 'Tab' || event.ctrlKey || event.altKey || event.metaKey) return
         const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(

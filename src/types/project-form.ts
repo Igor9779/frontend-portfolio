@@ -19,6 +19,12 @@ export type ProjectFormPrefill = Pick<ProjectFormValues,
   'title' | 'shortDescription' | 'description' | 'githubUrl' | 'productionUrl' | 'technologies'
 > & { githubRepository: string }
 
+export interface ProjectFormDraft {
+  values: ProjectFormValues
+  previewMode: 'keep' | 'url'
+  importedRepository: string | null
+}
+
 export type ProjectFieldErrors = Partial<Record<keyof ProjectFormValues | 'previewFile', string>>
 export type ProjectSaveResult =
   | { success: true; project: AdminProject }
