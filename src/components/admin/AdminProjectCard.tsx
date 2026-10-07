@@ -2,17 +2,23 @@
 
 import type { AdminProject } from '../../types/admin-project'
 import { Icon } from './Icon'
+import { ProjectDragHandle } from './ProjectDragHandle'
 
 const actionClass = 'inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-zinc-200 disabled:hover:bg-white'
 
-export function AdminProjectCard({ project, canMoveUp, canMoveDown, searching, onEdit, onDelete, onMove }: {
+export function AdminProjectCard({ project, canMoveUp, canMoveDown, reorderDisabled, crudDisabled, dragging, dropTarget, onEdit, onDelete, onMove, onDrop, onDragChange }: {
   project: AdminProject
   canMoveUp: boolean
   canMoveDown: boolean
-  searching: boolean
+  reorderDisabled: boolean
+  crudDisabled: boolean
+  dragging: boolean
+  dropTarget: boolean
   onEdit: () => void
   onDelete: () => void
   onMove: (direction: -1 | 1) => void
+  onDrop: (targetId: string) => void
+  onDragChange: (targetId: string | null, active: boolean) => void
 }) {
   const links = [
     { label: 'GitHub', href: project.githubUrl },
@@ -21,7 +27,7 @@ export function AdminProjectCard({ project, canMoveUp, canMoveDown, searching, o
   ]
 
   return (
-    <li className="border-b border-zinc-200 p-4 last:border-b-0 sm:p-5">
+    <li data-project-id={project.id} className={`border-b border-zinc-200 p-4 last:border-b-0 sm:p-5 ${dropTarget ? 'bg-zinc-50 ring-2 ring-zinc-300 ring-inset' : ''} ${dragging ? 'opacity-60' : ''}`}>
       <article aria-label={project.title} className="grid grid-cols-[64px_minmax(0,1fr)] items-start gap-x-4 gap-y-4 sm:grid-cols-[88px_minmax(0,1fr)] xl:grid-cols-[88px_minmax(0,1fr)_auto]">
         <div>
           <div className="aspect-[4/3] overflow-hidden rounded-md border border-zinc-200 bg-zinc-100">
@@ -50,12 +56,13 @@ export function AdminProjectCard({ project, canMoveUp, canMoveDown, searching, o
 
         <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3 xl:col-span-1 xl:flex-col xl:items-end xl:border-0 xl:pt-0">
           <div className="flex gap-2">
-            <button type="button" onClick={onEdit} aria-label={`Edit ${project.title}`} className={actionClass}><Icon name="edit" className="h-3.5 w-3.5" />Edit</button>
-            <button type="button" onClick={onDelete} aria-label={`Delete ${project.title}`} className={`${actionClass} hover:text-red-600`}><Icon name="trash" className="h-3.5 w-3.5" />Delete</button>
+            <button type="button" onClick={onEdit} disabled={crudDisabled} aria-label={`Edit ${project.title}`} title={crudDisabled ? 'Save or Reset the current order first' : undefined} className={actionClass}><Icon name="edit" className="h-3.5 w-3.5" />Edit</button>
+            <button type="button" onClick={onDelete} disabled={crudDisabled} aria-label={`Delete ${project.title}`} title={crudDisabled ? 'Save or Reset the current order first' : undefined} className={`${actionClass} hover:text-red-600`}><Icon name="trash" className="h-3.5 w-3.5" />Delete</button>
           </div>
           <div className="flex gap-1.5">
-            <button type="button" onClick={() => onMove(-1)} disabled={!canMoveUp || searching} aria-label={`Move ${project.title} up`} title={searching ? 'Clear search to change order' : 'Move up · preview only'} className={`${actionClass} w-9 px-0`}><Icon name="arrowUp" className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={() => onMove(1)} disabled={!canMoveDown || searching} aria-label={`Move ${project.title} down`} title={searching ? 'Clear search to change order' : 'Move down · preview only'} className={`${actionClass} w-9 px-0`}><Icon name="arrowDown" className="h-3.5 w-3.5" /></button>
+            <ProjectDragHandle id={project.id} title={project.title} disabled={reorderDisabled} onDrop={onDrop} onMove={onMove} onDragChange={onDragChange} />
+            <button type="button" onClick={() => onMove(-1)} disabled={!canMoveUp || reorderDisabled} aria-label={`Move ${project.title} up`} title="Move up · Save order to persist" className={`${actionClass} w-9 px-0`}><Icon name="arrowUp" className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={() => onMove(1)} disabled={!canMoveDown || reorderDisabled} aria-label={`Move ${project.title} down`} title="Move down · Save order to persist" className={`${actionClass} w-9 px-0`}><Icon name="arrowDown" className="h-3.5 w-3.5" /></button>
           </div>
         </div>
       </article>

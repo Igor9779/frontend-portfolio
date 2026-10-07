@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useReducer, useRef, useState, useTransition } from 'react'
+import { unstable_rethrow, useRouter } from 'next/navigation'
+import { reorderProjects } from '../../app/admin/order-actions'
+import { createProjectOrder, projectOrderControls, projectOrderPayload, projectOrderReducer, sameProjectOrder } from '../../lib/project-order'
 import type { AdminProject } from '../../types/admin-project'
 import { AdminProjectCard } from './AdminProjectCard'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
@@ -10,17 +13,30 @@ import { ProjectForm } from './ProjectForm'
 type Editor = { mode: 'add' } | { mode: 'edit'; project: AdminProject }
 
 export function AdminProjects({ initialProjects }: { initialProjects: AdminProject[] }) {
+  const router = useRouter()
   const searchId = useId()
+  const list = useRef<HTMLUListElement>(null)
   const addButton = useRef<HTMLButtonElement>(null)
   const focusAfterDelete = useRef(false)
-  // Server props stay authoritative after CRUD revalidation. Only the ordering
-  // preview is kept locally, so refreshed titles/visibility cannot become stale.
-  const [previewOrder, setPreviewOrder] = useState<string[] | null>(null)
+  const submitting = useRef(false)
+  const serverIds = initialProjects.map((project) => project.id)
+  const [lastServerIds, setLastServerIds] = useState(serverIds)
+  const [order, dispatchOrder] = useReducer(projectOrderReducer, serverIds, createProjectOrder)
+  const [pending, startTransition] = useTransition()
   const [query, setQuery] = useState('')
   const [editor, setEditor] = useState<Editor | null>(null)
   const [deleting, setDeleting] = useState<AdminProject | null>(null)
   const [orderNotice, setOrderNotice] = useState('')
   const [mutationNotice, setMutationNotice] = useState('')
+  const [orderError, setOrderError] = useState('')
+  const [drag, setDrag] = useState<{ id: string; targetId: string | null } | null>(null)
+
+  // Adjust only when server props change. A dirty draft keeps its original
+  // expected_order; Reset explicitly adopts the newest server snapshot.
+  if (!sameProjectOrder(lastServerIds, serverIds)) {
+    setLastServerIds(serverIds)
+    dispatchOrder({ type: 'sync', ids: serverIds })
+  }
 
   useEffect(() => {
     // Wait for the dialog's cleanup before moving focus outside the modal.
@@ -31,33 +47,75 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
   }, [deleting])
 
   const projectById = new Map(initialProjects.map((project) => [project.id, project]))
-  const previewIds = previewOrder?.filter((id) => projectById.has(id))
-  const projects = previewIds
-    ? [...previewIds.map((id) => projectById.get(id)!), ...initialProjects.filter((project) => !previewIds.includes(project.id))]
-        .map((project, position) => ({ ...project, position }))
-    : initialProjects
+  const controls = projectOrderControls(order, query, pending, serverIds)
+  const draftIds = order.draftOrder.filter((id) => projectById.has(id))
+  const projects = [...draftIds.map((id) => projectById.get(id)!), ...initialProjects.filter((project) => !draftIds.includes(project.id))]
+    .map((project, position) => controls.dirty ? { ...project, position } : project)
   const normalizedQuery = query.trim().toLowerCase()
   const matchingProjects = projects.filter((project) => [project.title, project.category, ...project.technologies].some((value) => value.toLowerCase().includes(normalizedQuery)))
-  const orderChanged = projects.some((project, index) => project.id !== initialProjects[index]?.id)
+
+  function focusHandle(id: string) {
+    requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>(`[data-drag-handle="${id}"]`)?.focus())
+  }
+
+  function changedOrder(id: string, next: typeof order) {
+    if (next === order) return
+    setOrderError('')
+    setMutationNotice('')
+    setOrderNotice(`${projectById.get(id)?.title ?? 'Project'} moved to position ${next.draftOrder.indexOf(id)}. Order is not saved yet.`)
+    focusHandle(id)
+  }
 
   function moveProject(id: string, direction: -1 | 1) {
-    const index = projects.findIndex((project) => project.id === id)
-    const nextIndex = index + direction
-    if (index < 0 || nextIndex < 0 || nextIndex >= projects.length || normalizedQuery) return
-    const reordered = [...projects]
-    const project = reordered[index]
-    const neighbor = reordered[nextIndex]
-    if (!project || !neighbor) return
-    reordered[index] = neighbor
-    reordered[nextIndex] = project
-    const nextOrder = reordered.map((item) => item.id)
-    setPreviewOrder(nextOrder.every((id, position) => id === initialProjects[position]?.id) ? null : nextOrder)
-    setOrderNotice(`${project.title} moved to position ${nextIndex}. This order is a local preview.`)
+    const action = { type: 'move' as const, id, direction, blocked: controls.reorderDisabled || Boolean(editor || deleting) }
+    changedOrder(id, projectOrderReducer(order, action))
+    dispatchOrder(action)
+  }
+
+  function dropProject(id: string, targetId: string) {
+    const action = { type: 'drop' as const, id, targetId, blocked: controls.reorderDisabled || Boolean(editor || deleting) }
+    changedOrder(id, projectOrderReducer(order, action))
+    dispatchOrder(action)
+  }
+
+  function resetOrder() {
+    if (controls.resetDisabled) return
+    dispatchOrder({ type: 'reset', ids: serverIds })
+    setOrderError('')
+    setMutationNotice('')
+    setOrderNotice('Latest saved project order restored. No changes were sent.')
+  }
+
+  function saveOrder() {
+    if (controls.saveDisabled || submitting.current) return
+    submitting.current = true
+    const input = projectOrderPayload(order)
+    setOrderError('')
+    setMutationNotice('')
+    startTransition(async () => {
+      try {
+        const result = await reorderProjects(input.orderedIds, input.expectedOrder)
+        if (result.success) {
+          dispatchOrder({ type: 'saved', ids: result.orderedIds })
+          setOrderNotice('')
+          setMutationNotice('Project order saved.')
+        } else {
+          setOrderError(result.message)
+          // Fetch the authoritative list without discarding the failed draft.
+          router.refresh()
+        }
+      } catch (error) {
+        unstable_rethrow(error)
+        setOrderError('Unable to save project order. Please try again.')
+        router.refresh()
+      } finally {
+        submitting.current = false
+      }
+    })
   }
 
   function saved(project: AdminProject) {
     setEditor(null)
-    setPreviewOrder(null)
     setQuery('')
     setOrderNotice('')
     setMutationNotice(`${project.title} saved. Showing the saved project order.`)
@@ -66,7 +124,6 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
   function deleted() {
     focusAfterDelete.current = true
     setDeleting(null)
-    setPreviewOrder(null)
     setOrderNotice('')
     setMutationNotice('Project deleted. Showing the saved project order.')
   }
@@ -78,12 +135,12 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
           <h1 id="admin-projects-heading" className="text-[28px] leading-tight font-semibold tracking-[-0.03em]">Projects</h1>
           <p className="mt-2 text-sm text-zinc-500">Manage projects displayed in your portfolio.</p>
         </div>
-        <button ref={addButton} type="button" onClick={() => setEditor({ mode: 'add' })} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"><Icon name="plus" />Add project</button>
+        <button ref={addButton} type="button" disabled={controls.crudDisabled} title={controls.crudDisabled ? 'Save or Reset the current order first' : undefined} onClick={() => { if (!controls.crudDisabled) setEditor({ mode: 'add' }) }} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="plus" />Add project</button>
       </div>
 
       <div className="mb-6 flex items-start gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 text-xs leading-5 text-zinc-500">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-        <p><span className="font-medium text-zinc-700">Administrator workspace.</span> Add, edit and delete portfolio projects. Move Up/Down changes are preview-only.</p>
+        <p><span className="font-medium text-zinc-700">Administrator workspace.</span> Manage portfolio projects. Drag or use Move Up/Down, then Save order to publish the new order.</p>
       </div>
       {mutationNotice && <p role="status" className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">{mutationNotice}</p>}
 
@@ -95,20 +152,33 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
         </div>
         <p role="status" className="text-xs text-zinc-500">{normalizedQuery ? `${matchingProjects.length} of ${projects.length}` : projects.length} {projects.length === 1 ? 'project' : 'projects'}</p>
       </div>
-      <p id={`${searchId}-hint`} className={normalizedQuery ? 'mb-4 text-[11px] text-zinc-500' : 'sr-only'}>{normalizedQuery ? 'Search matches titles, categories and technologies. Clear search to change order.' : 'Search by title, category or technology.'}</p>
+      <p id={`${searchId}-hint`} className={normalizedQuery ? 'mb-4 text-[11px] text-zinc-500' : 'sr-only'}>{normalizedQuery ? 'Clear search to reorder projects.' : 'Search by title, category or technology.'}</p>
 
-      {orderChanged && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          <p>Order changes are preview-only. Refreshing restores the saved order.</p>
-          <button type="button" onClick={() => { setPreviewOrder(null); setOrderNotice('Original project order restored.') }} className="min-h-8 rounded px-2 font-medium underline underline-offset-2 focus-visible:outline-amber-800">Reset order</button>
+      <div aria-busy={pending} className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-xs ${controls.dirty ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-zinc-200 bg-white text-zinc-500'}`}>
+        <div className="min-w-0 flex-1 basis-[200px]">
+          <p className="font-medium">{pending ? 'Saving project order…' : controls.dirty ? 'Unsaved order changes' : 'Project order is saved'}</p>
+          <p className="mt-1 text-[11px] leading-5">{controls.dirty ? 'Save or Reset the current order before adding, editing or deleting projects.' : 'Changes stay in this draft until you select Save order.'}</p>
         </div>
-      )}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button type="button" disabled={controls.resetDisabled} onClick={resetOrder} className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 font-medium text-zinc-700 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">Reset order</button>
+          <button type="button" disabled={controls.saveDisabled} onClick={saveOrder} className="min-h-9 rounded-md bg-zinc-900 px-3 font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">{pending ? 'Saving…' : 'Save order'}</button>
+        </div>
+      </div>
+      {controls.stale && <p role="status" className="mb-4 text-xs leading-5 text-amber-800">The saved project list or order changed. Reset to the latest saved order before continuing.</p>}
+      {orderError && <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">{orderError}</p>}
+      <p id="project-order-instructions" className="sr-only">Drag by the handle, or use Arrow Up and Arrow Down on the handle or the Move Up/Down buttons. Select Save order to persist changes. Escape cancels a drag.</p>
       <p role="status" className="sr-only">{orderNotice}</p>
 
       {matchingProjects.length > 0 ? (
-        <ul aria-label="Portfolio projects" className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+        <ul ref={list} aria-label="Portfolio projects" className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
           {matchingProjects.map((project) => (
-            <AdminProjectCard key={project.id} project={project} canMoveUp={project.id !== projects[0]?.id} canMoveDown={project.id !== projects.at(-1)?.id} searching={Boolean(normalizedQuery)} onEdit={() => setEditor({ mode: 'edit', project })} onDelete={() => setDeleting(project)} onMove={(direction) => moveProject(project.id, direction)} />
+            <AdminProjectCard key={project.id} project={project} canMoveUp={project.id !== projects[0]?.id} canMoveDown={project.id !== projects.at(-1)?.id}
+              reorderDisabled={controls.reorderDisabled || Boolean(editor || deleting)} crudDisabled={controls.crudDisabled}
+              dragging={drag?.id === project.id} dropTarget={drag?.targetId === project.id && drag.id !== project.id}
+              onEdit={() => { if (!controls.crudDisabled) setEditor({ mode: 'edit', project }) }}
+              onDelete={() => { if (!controls.crudDisabled) setDeleting(project) }}
+              onMove={(direction) => moveProject(project.id, direction)} onDrop={(targetId) => dropProject(project.id, targetId)}
+              onDragChange={(targetId, active) => setDrag(active ? { id: project.id, targetId } : null)} />
           ))}
         </ul>
       ) : (

@@ -10,6 +10,7 @@ const paths = {
   grid: 'M3 3h7v7H3V3Zm11 0h7v7h-7V3ZM3 14h7v7H3v-7Zm11 0h7v7h-7v-7Z',
   close: 'm6 6 12 12M6 18 18 6',
   lock: 'M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5V10Zm7 5v2',
+  grip: 'M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01',
 } as const
 
 export function Icon({ name, className = 'h-4 w-4' }: {

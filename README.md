@@ -228,12 +228,14 @@ src/
     admin/login/page.tsx  Email/password administrator sign-in
     admin/actions.ts  Authentication-only sign-in and sign-out actions
     admin/project-actions.ts  Authorized create/update/delete Server Actions
+    admin/order-actions.ts  Authorized atomic project-order Server Action
     cms-demo/page.tsx  Temporary public demo placeholder
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
   lib/
     projects.ts     Server-only query and database-to-UI mapping
     project-validation.ts  Allowed fields, bounds, URLs and repository mapping
+    project-order.ts  Saved/draft ordering, control guards and ID validation
     preview-file.ts  Shared size/type/signature validation
     preview-path.ts  Strict managed preview URL recognition
     project-previews.ts  Authorized server uploads and compensating cleanup
@@ -255,8 +257,11 @@ supabase/
   setup-project-preview-storage.sql  Public preview bucket and admin policies
   verify-project-preview-storage.sql  Read-only Stage 7 policy/checkpoint checks
   verify-project-preview-cleanup.sql  Read-only final Stage 7 cleanup check
+  setup-atomic-project-ordering.sql  Applied invoker RPC and execute permissions
+  verify-atomic-project-ordering.sql  SELECT-only RPC/grant/order inspection
 tests/
   projects.test.mjs  Isolated validation/action/Storage tests; no production access
+  project-order.test.mjs  Ordering state, validation and authorized RPC tests
   fixtures/         Small JPEG, PNG and WebP validation fixtures
 public/
   assets/           Original portfolio preview images
@@ -279,7 +284,7 @@ The application currently uses root-relative URLs for local previews, demo links
 ## Routes and Future CMS Work
 
 - `/` — portfolio backed by the ten visible Supabase projects.
-- `/admin` — protected project management with administrator Add/Edit/Delete.
+- `/admin` — protected project management with administrator CRUD and persistent ordering.
 - `/admin/login` — private administrator sign-in; no registration.
 - `/cms-demo` — temporary page: “Portfolio CMS Demo — coming next.”
 
@@ -291,7 +296,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-Persistent ordering, public CMS Demo Mode, AI, GitHub imports and screenshot generation remain future work. Database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key.
+Public CMS Demo Mode, AI, GitHub imports and screenshot generation remain future work. Database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key.
 
 ## CMS Interface
 
@@ -306,10 +311,26 @@ The interface includes:
 - A shared Add/Edit dialog with project fields, technology chips and visibility. Save persists validated changes; closing or cancelling discards the draft. Failed saves retain entered values and display field or generic errors.
 - Optional preview selection/replacement with a local image preview and filename. Upload starts only on Save; cancelling creates no Storage object. An existing URL/local asset remains available as a secondary option.
 - Explicit delete confirmation with a pending state, error feedback and focus restoration after deletion.
-- Local Move Up/Down previews, an explicit preview notice and Reset order. Refreshing restores database order. Clear search before reordering so moves always correspond to the complete list.
+- Dedicated mouse/touch drag handles, keyboard Arrow Up/Down and Move Up/Down buttons. Reordering changes only the draft until Save order; Reset adopts the latest saved order. Clear search before reordering so moves always correspond to the complete list.
 - Native modal dialogs with focus containment, Escape/backdrop dismissal, focus restoration and scrollable forms on smaller viewports. Dismissal and duplicate submission are disabled while a mutation is pending.
 
-Only ordering previews are non-persistent. CRUD clears the ordering preview and shows the saved database order. `/cms-demo`, the public portfolio and the unchanged static demo files remain separate from the management interface.
+Add, Edit and Delete are disabled while order changes are unsaved or a save is pending. Save or Reset the order first; this avoids changing the project set under a local draft. `/cms-demo`, the public portfolio and the unchanged static demo files remain separate from the management interface.
+
+## Atomic Project Ordering (Stage 8)
+
+`AdminProjects` keeps separate saved and draft ID arrays. Dragging by the dedicated handle or using the keyboard/buttons changes only the draft. Save and Reset are disabled when unchanged, and search disables all ordering controls. Pending saves prevent duplicate submission and further edits. Failed saves keep the draft; an authoritative server refresh exposes concurrent changes without silently replacing its original baseline. Reset explicitly adopts the latest saved list.
+
+`reorderProjects()` independently calls `requireAdmin()` before validation and uses that user's authenticated Supabase client. The browser submits only complete `ordered_ids` and `expected_order` UUID lists, including hidden projects, never position values or filtered search results. Server validation rejects malformed/null/duplicate IDs, excessive arrays and mismatched submitted sets, then performs one call to the existing `public.reorder_projects(uuid[], uuid[])` RPC. The RPC is the authoritative complete-set and concurrency boundary; there is no separate pre-read followed by multiple update requests. Success revalidates `/admin` and `/` while retaining uncached data access. Raw database errors are never returned to the UI.
+
+`supabase/setup-atomic-project-ordering.sql` was applied manually before the UI implementation. Its one function uses `SECURITY INVOKER`, a fixed `pg_catalog` search path and enabled row security. It independently verifies `auth.uid()` membership in `public.admin_users` before locking. Existing authenticated SELECT/UPDATE grants and project RLS remain authoritative; no new table grants or policies are added. Function execution is revoked from PUBLIC, anon and service_role, and granted to authenticated callers, with administrator membership still required.
+
+Inside the RPC transaction, `SHARE ROW EXCLUSIVE` blocks concurrent INSERT/UPDATE/DELETE and serializes reorder calls while allowing ordinary SELECT. Under READ COMMITTED it reads every project, compares the submitted set and expected order against the current `ORDER BY position, id`, derives positions `0..n-1` from UUID array ordinality and updates only `position`. Duplicate/null/incomplete/unknown IDs, stale baselines, affected-row mismatches or invalid final mappings raise an exception and roll back the complete call. Empty arrays are accepted only for an empty table. No unique position constraint or temporary-position logic is added. Other columns, IDs, timestamps, previews and Storage paths are preserved.
+
+The SELECT-only verification file inspects configuration without invoking the RPC. Live application verification saved a two-project swap, confirmed persistence after dashboard refresh and the public order change, then restored and refreshed the exact original order. Every field of the original ten records matched the initial snapshot, positions returned to 0–9, preview URLs stayed unchanged, and read-only Storage inventories remained empty. A real stale-baseline request and anonymous RPC execution were denied. Controlled browser tests independently verified authenticated non-member Server Action denial without contacting production Supabase.
+
+The 47 automated tests include ordering state/validation/action contracts and all existing CRUD/Storage checks. Browser verification covers mouse and touch drag, keyboard fallback/focus, search guards, dirty-order CRUD protection, failure preservation, stale-order recovery, hidden-project inclusion and 320px/375px/768px/1440px layouts. The public portfolio, project links, static demos, authentication/logout and `/cms-demo` were verified with zero CMS console errors and no direct browser Supabase mutations. No new runtime dependency or service-role credential is introduced.
+
+Existing creation still reads the highest position and inserts separately; concurrent additions can share a position, with deterministic UUID tie-breaking. Creates/deletes may leave gaps. A successful reorder normalizes the complete set at commit; this stage does not change CRUD allocation or maintain dense positions after every later mutation.
 
 ## Secure Administrator CRUD (Stage 6)
 
@@ -327,7 +348,7 @@ Validation uses a small TypeScript allowlist without additional dependencies. Re
 
 Creation generates a server UUID, sets `source = 'manual'`, derives `github_repo` from normal GitHub repository URLs, supplies server timestamps and appends at the highest stored position plus one (zero for an empty table). Editing uses explicit allowed columns and preserves ID, source, creation time and stored position. Delete targets one validated UUID and requires confirmation. Missing rows are reported as unavailable rather than successful mutations.
 
-Concurrent additions may share a position; UUID secondary ordering remains deterministic. Ordering persistence can be added in its later stage. Preview references remain in the existing `preview_url` text column; Stage 7 adds uploads while preserving local and external URLs.
+Concurrent additions may share a position; UUID secondary ordering remains deterministic. Stage 8 adds atomic ordering without changing CRUD position allocation. Preview references remain in the existing `preview_url` text column; Stage 7 adds uploads while preserving local and external URLs.
 
 Live verification created only a hidden `CMS CRUD Test`, verified that it persisted in `/admin` while remaining absent from `/`, edited it, and deleted it. The authenticated dashboard returned to exactly ten projects, and every original row—including IDs, content, positions, visibility and timestamps—matched the pre-test snapshot. Live logged-out direct action calls were denied. Controlled authenticated non-member sessions also verified direct denial by all three actual Server Actions, with identity/membership rechecked and no project query executed. `supabase/verify-admin-project-writes.sql` independently verified administrator CRUD, anonymous denial, non-administrator RLS denial and hidden-row access inside a rollback-only transaction, ending with ten original projects and zero test rows. It can be rerun intentionally in the SQL Editor after cleanup; never commit that verification transaction.
 
@@ -347,7 +368,7 @@ Live verification used only a hidden `CMS Storage Test`: uploaded a PNG, verifie
 
 The Stage 7 checkpoint SQL expects eleven rows and one replacement object while that temporary test is paused. The final cleanup SQL expects ten original rows and an empty preview bucket after deletion. These are migration verification files, not general maintenance scripts. Storage metadata is read-only in these checks; actual uploads and deletions use the API, following [Supabase's Storage schema guidance](https://supabase.com/docs/guides/storage/schema/design).
 
-All 35 automated tests run without production Storage and cover formats/signatures, size limits, path safety, independent authorization, compensating cleanup, failed replacements, shared references and local asset preservation. Browser checks cover 320px–1440px layouts, dialog focus/Escape behavior, authenticated refresh/logout, unchanged public projects/static demos, and zero console errors or direct browser Supabase mutations. Future persistent sorting should change positions without changing project IDs or preview paths.
+The CRUD/Storage tests run without production Storage and cover formats/signatures, size limits, path safety, independent authorization, compensating cleanup, failed replacements, shared references and local asset preservation. Browser checks cover 320px–1440px layouts, dialog focus/Escape behavior, authenticated refresh/logout, unchanged public projects/static demos, and zero console errors or direct browser Supabase mutations. Stage 8 sorting changes positions without changing project IDs or preview paths.
 
 ## Administrator Authentication (Stage 5)
 
