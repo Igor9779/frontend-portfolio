@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "ai-creator",
+    "full_name": "Igor9779/ai-creator",
+    "html_url": "https://github.com/Igor9779/ai-creator",
+    "private": false,
+    "description": "MUSE — AI Creator Showcase, a frontend showcase with fictional creator profiles and scripted mock chat.",
+    "homepage": "https://example.test/muse",
+    "topics": ["react", "typescript", "telegram-mini-app"]
+  },
+  "languages": { "TypeScript": 9000, "CSS": 1500, "HTML": 500 },
+  "readme": "# MUSE — AI Creator Showcase\nA React and TypeScript frontend built with Vite and Tailwind CSS. It presents fictional AI creator profiles, a social feed, local/mock likes and mock/scripted AI chat. Telegram Mini App support and EN/UA/RU localization are included. The chat uses scripted replies; no live AI API is called. There is no backend, no database, no authentication and no payments.\n",
+  "package": {
+    "name": "muse-showcase",
+    "description": "A frontend showcase of fictional creator profiles and scripted interactions.",
+    "dependencies": { "react": "*", "react-dom": "*" },
+    "devDependencies": { "typescript": "*", "vite": "*", "tailwindcss": "*", "eslint": "*", "@types/react": "*" },
+    "scripts": { "do-not-send": "never execute repository scripts" }
+  },
+  "suggestions": {
+    "title": "MUSE — AI Creator Showcase",
+    "category": "Frontend",
+    "short_description": "A multilingual frontend showcase with fictional creator profiles and scripted mock chat.",
+    "description": "MUSE presents fictional creator profiles through a social feed with local likes and scripted mock chat. Built with React and TypeScript, it supports Telegram Mini App use and EN/UA/RU localization. It runs as a frontend showcase without a backend, database, authentication or payments, and makes no live AI API calls.",
+    "technologies": ["React", "TypeScript", "Vite", "Tailwind CSS"]
+  }
+}

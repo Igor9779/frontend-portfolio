@@ -1,10 +1,12 @@
 'use client'
 
 import { useActionState, useId, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import type { AdminProject } from '../../types/admin-project'
 import type { ProjectFormDraft, ProjectFormPrefill, ProjectFormValues, ProjectSaveResult } from '../../types/project-form'
+import type { AiProjectSuggestions } from '../../types/ai-autofill'
+import { mergeAiSuggestions } from '../../lib/ai-suggestions'
 import { projectLimits } from '../../lib/project-validation'
 import { Dialog } from './Dialog'
 import { Icon } from './Icon'
@@ -13,7 +15,7 @@ import { PreviewImageInput } from './PreviewImageInput'
 
 const inputClass = 'w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400'
 
-export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftChange, onDiscardDraft, draftPersistent, onClose, onSaved, onSave, renderPrefill, localOnly = false }: {
+export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftChange, onDiscardDraft, draftPersistent, onClose, onSaved, onSave, prefill: Prefill, localOnly = false }: {
   mode: 'add' | 'edit'
   onSave: (formData: FormData) => Promise<ProjectSaveResult>
   localOnly?: boolean
@@ -24,7 +26,9 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   onDraftChange?: (draft: ProjectFormDraft) => void
   onDiscardDraft?: () => void
   draftPersistent?: boolean
-  renderPrefill?: (controls: { disabled: boolean; onApply: (fields: ProjectFormPrefill) => void; onPendingChange: (pending: boolean) => void }) => ReactNode
+  prefill?: ComponentType<{ disabled: boolean; repositoryUrl: string; onApply: (fields: ProjectFormPrefill) => void;
+    onApplySuggestions: (suggestions: AiProjectSuggestions, expectedRepository: string) => boolean;
+    onPendingChange: (pending: boolean) => void }>
 }) {
   const id = useId()
   const submitting = useRef(false)
@@ -42,6 +46,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
     technologies: initialProject?.technologies ?? [],
     visible: initialProject?.visible ?? true,
   } })
+  const currentDraft = useRef(draft)
   const { values, previewMode, importedRepository } = draft
   const [result, save, pending] = useActionState<ProjectSaveResult | null, FormData>(async (_previous, formData) => {
     try {
@@ -62,6 +67,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   const errors = result?.success === false ? result.errors : undefined
   const busy = pending || prefillPending
   function changeDraft(next: ProjectFormDraft) {
+    currentDraft.current = next
     setDraft(next)
     // Event-driven writes finish before dismissal or refresh; no effect can
     // later recreate a draft after a successful Save has cleared storage.
@@ -100,9 +106,19 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
             <p role="status" className="min-w-0 flex-1 text-xs leading-5 text-zinc-500">{draftPersistent ? 'Draft kept in this tab until you save or discard.' : 'Browser storage is unavailable. Keep this form open to retain your draft.'}</p>
             <button type="button" onClick={onDiscardDraft} disabled={busy} className="min-h-9 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Discard draft</button>
           </div>}
-          {renderPrefill?.({ disabled: pending, onPendingChange: setPrefillPending, onApply: ({ githubRepository, ...fields }) => {
-            changeDraft({ ...draft, values: { ...values, ...fields, technologies: [...fields.technologies] }, importedRepository: githubRepository })
-          } })}
+          {Prefill && <Prefill disabled={busy} repositoryUrl={values.githubUrl} onPendingChange={setPrefillPending}
+            onApply={({ githubRepository, ...fields }) => {
+              const current = currentDraft.current
+              changeDraft({ ...current, values: { ...current.values, ...fields, technologies: [...fields.technologies] }, importedRepository: githubRepository })
+            }} onApplySuggestions={(suggestions, expectedRepository) => {
+              // A pending response also belongs to the import provenance at
+              // request time, even if a later URL edit identifies the same repo.
+              if (currentDraft.current.importedRepository !== importedRepository) return false
+              const next = mergeAiSuggestions(currentDraft.current, suggestions, expectedRepository)
+              if (!next) return false
+              changeDraft(next)
+              return true
+            }} />}
           <fieldset disabled={busy} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor={`${id}-name`} className="mb-2 block text-xs font-medium text-zinc-700">Title <span aria-hidden="true">*</span></label>

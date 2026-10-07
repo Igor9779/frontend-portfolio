@@ -187,7 +187,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 ```
 
-Environment values must also be configured on the deployment host. Actual environment files are ignored by Git. The server validates configuration without logging values. No secret or service-role key is used.
+Environment values must also be configured on the deployment host. Actual environment files are ignored by Git. The server validates configuration without logging values. Supabase access uses the publishable key and the user's session, with no service-role key. Optional administrator AI Auto-fill additionally uses the server-only `OPENAI_API_KEY`; the portfolio and ordinary CMS features work without it.
 
 Seed the existing `public.projects` table as described below before expecting the ten original cards, then run:
 
@@ -230,6 +230,7 @@ src/
     admin/project-actions.ts  Authorized create/update/delete Server Actions
     admin/order-actions.ts  Authorized atomic project-order Server Action
     admin/github-actions.ts  Authorized read-only GitHub metadata import
+    admin/ai-actions.ts  Authorized AI suggestions; never saves project data
     cms-demo/page.tsx  Public CMS demo; server-read visible project snapshot
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
@@ -239,6 +240,11 @@ src/
     project-validation.ts  Allowed fields, bounds, URLs and repository mapping
     github-repository.ts  Strict GitHub URL validation and normalized identity
     github-import.ts  Bounded server-only public GitHub metadata/language reads
+    github-api.ts     Shared fixed-origin, streaming-limited GitHub transport
+    github-context.ts  Bounded README/package evidence for AI suggestions
+    ai-autofill.ts    Server-only OpenAI Responses integration and strict schema
+    ai-evidence.ts    Conservative checks for explicit evidence contradictions
+    ai-suggestions.ts  Five-field validation and neutral form merge
     github-projects.ts  Authenticated, case-insensitive duplicate lookup
     admin-project-draft.ts  Real Add Project tab draft serialization and recovery
     project-order.ts  Saved/draft ordering, control guards and ID validation
@@ -272,6 +278,7 @@ tests/
   cms-demo.test.mjs  Local interactions, persistence, previews and import isolation
   github-import.test.mjs  URL/API normalization, errors, duplicates and read-only import
   admin-project-draft.test.mjs  Picker cancellation, form fields and tab draft recovery
+  ai-autofill.test.mjs  Mocked authorization, context, schema, failures and MUSE regression
   fixtures/         Small JPEG, PNG and WebP validation fixtures
 public/
   assets/           Original portfolio preview images
@@ -306,7 +313,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-AI and screenshot generation remain future work. GitHub import is available only in the real CMS Add Project form. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
+GitHub import and optional AI Auto-fill are available only in the real CMS Add Project form. Automatic screenshots remain future work. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
 
 ## CMS Interface
 
@@ -329,7 +336,7 @@ Add, Edit and Delete are disabled while order changes are unsaved or a save is p
 
 ## Add Project Draft Recovery
 
-The real `/admin` Add form keeps its editable fields in `sessionStorage` under `portfolio:admin:add-project:v1`. Typing and GitHub imports write synchronously during the corresponding interaction. Reopening or refreshing restores unfinished text, technologies, visibility, preview URL/source mode and import provenance (`source`/`github_repo`). Incomplete draft fields are preserved as entered; full project validation still runs server-side on Save. Successful Create clears the draft; Discard draft clears storage and resets the open form, file selection and import feedback.
+The real `/admin` Add form keeps its editable fields in `sessionStorage` under `portfolio:admin:add-project:v1`. Typing, GitHub imports and accepted AI suggestions write synchronously during the corresponding interaction. Reopening or refreshing restores unfinished text, technologies, visibility, preview URL/source mode and import provenance (`source`/`github_repo`). Incomplete draft fields are preserved as entered; full project validation still runs server-side on Save. Successful Create clears the draft; Discard draft clears storage and resets the open form, file selection and import feedback.
 
 Files and blob preview URLs are never stored. Closing releases selected previews; files must be reselected after reopening or refresh. Storage uses a versioned, bounded allowlist with type/length and repository consistency checks. Corrupted drafts are ignored, credentials/internal row fields are excluded, and blocked browser storage falls back to an open-form-only draft with a notice. Browser storage is read only after hydration. Edit and the public demo do not use this draft key or persistence adapter.
 
@@ -410,6 +417,18 @@ Repository identity is normalized to lowercase `owner/repository`. Import checks
 `GithubImport` and the real form adapter alone import the protected action. The shared form accepts a presentation-only prefill slot; `/cms-demo` supplies no slot and its complete client import graph cannot reach GitHub fetching/actions, authenticated clients, Storage or real mutations. Existing RLS, grants, authentication, preview cleanup and atomic ordering remain unchanged.
 
 Verification covers URL/response/language normalization, rate limits, bounded bodies, duplicates, independent authorization, read-only import and demo isolation. Isolated browser fixtures exercise loading/errors, editable prefill, selected-preview preservation and the existing Create/upload/delete cleanup flow. Live administrator verification imported `vercel/next.js` twice, edited fields locally and cancelled without saving; all ten complete production rows, positions 0–9, preview URLs and the empty Storage inventory matched the pre-test snapshots. Logged-out direct import calls were denied. Homepage cards/images/links, the CMS Demo promo, anonymous demo, five static demos, logout, 320px/375px/768px/1440px layouts and zero console errors were verified.
+
+## AI Auto-fill (Stage 11)
+
+The real `/admin` Add Project form offers optional **AI Auto-fill** after GitHub import or entering a valid GitHub URL. It replaces only title, category, short description, description and technologies. Suggestions remain editable, and nothing is saved until the normal **Save project** action succeeds. Accepted suggestions enter the existing tab draft immediately; links, GitHub provenance, visibility and selected preview files remain unchanged. Failures preserve the form. `/cms-demo` has no AI control or connection to the real AI service.
+
+Configure only the server-side variable `OPENAI_API_KEY` locally and on Vercel. Missing configuration disables the AI operation gracefully without breaking other portfolio/CMS features. Never put the credential in a public variable or commit an actual environment file.
+
+`autofillProject()` independently calls `requireAdmin()` before external requests. GitHub remains tokenless: the server reads only metadata, languages, README and root `package.json` through four constructed endpoints on the fixed API origin, without following redirects or repository links. Streaming response limits are 256 KiB for metadata, 32 KiB for languages and 128 KiB per optional file envelope. README decoding is capped at 32 KiB, package decoding at 64 KiB, the package projection at 8 KiB, metadata/languages at 4 KiB and complete serialized context at 48 KiB. Missing/invalid/oversized optional files are omitted with a notice; insufficient descriptive evidence skips the paid call. Package versions, scripts and arbitrary values are excluded.
+
+The official `openai` SDK uses Responses with centralized `gpt-5.4-mini`, reasoning disabled, no tools, no automatic retries, a 25-second provider timeout and a 1,200-token output cap. The action has a 45-second post-authorization deadline; the admin page permits 90 seconds for authorization and response overhead. Strict JSON Schema requires exactly five fields, followed by independent type/length/control-character validation and technology normalization. Conservative evidence checks reject explicit contradictions of documented mock/no-backend/no-database/no-authentication functionality and unsupported technologies. They cannot establish every semantic fact, so administrator review remains required. Repository content is untrusted data, separated from trusted instructions; environment/session data and preview files are never sent to the provider.
+
+This feature changes no SQL, RLS, Storage policies or mutation architecture. All normal tests use mocked GitHub/provider responses, including the MUSE scripted-chat regression fixture, and never make paid AI calls. Live AI verification requires an explicit, suggestion-only approval and must not save a project or touch Storage.
 
 ## Project Preview Storage (Stage 7)
 

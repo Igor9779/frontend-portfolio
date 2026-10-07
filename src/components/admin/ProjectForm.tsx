@@ -5,7 +5,7 @@ import type { AdminProject } from '../../types/admin-project'
 import { clearProjectDraft, emptyProjectDraft, loadProjectDraft, persistProjectDraft } from '../../lib/admin-project-draft'
 import { createProject, updateProject } from '../../app/admin/project-actions'
 import { ProjectFormDialog } from './ProjectFormDialog'
-import { GithubImport } from './GithubImport'
+import { ProjectPrefill } from './ProjectPrefill'
 
 const subscribe = () => () => {}
 
@@ -39,5 +39,5 @@ function AddProjectForm({ onClose, onSaved }: { onClose: () => void; onSaved: (p
       setForm((current) => ({ draft: emptyProjectDraft(), version: current.version + 1 }))
     }}
     onSaved={(project) => { clearProjectDraft(loaded.storage); onSaved(project) }}
-    renderPrefill={(controls) => <GithubImport {...controls} />} onSave={createProject} />
+    prefill={ProjectPrefill} onSave={createProject} />
 }

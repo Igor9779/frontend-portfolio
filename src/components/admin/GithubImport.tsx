@@ -1,39 +1,43 @@
 'use client'
 
-import { useId, useRef, useState, useTransition } from 'react'
+import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import { importGithubRepository } from '../../app/admin/github-actions'
 import type { ProjectFormPrefill } from '../../types/project-form'
 import type { GithubImportResult } from '../../types/github-import'
 
 // Real CMS only. The shared project form and public demo never import this.
-export function GithubImport({ disabled, onApply, onPendingChange }: {
+export function GithubImport({ disabled, onStart, onApply, onPendingChange }: {
   disabled: boolean
+  onStart: () => boolean
   onApply: (fields: ProjectFormPrefill) => void
   onPendingChange: (pending: boolean) => void
 }) {
   const id = useId()
   const submitting = useRef(false)
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [url, setUrl] = useState('')
   const [result, setResult] = useState<GithubImportResult | null>(null)
   const [pending, startTransition] = useTransition()
 
   function importRepository() {
-    if (submitting.current || disabled) return
+    if (submitting.current || disabled || !onStart()) return
     submitting.current = true
     onPendingChange(true)
     setResult(null)
     startTransition(async () => {
       try {
         const response = await importGithubRepository(url)
+        if (!mounted.current) return
         if (response.success) onApply(response.fields)
         setResult(response)
       } catch (error) {
         unstable_rethrow(error)
-        setResult({ success: false, message: 'Unable to import from GitHub. Please try again.' })
+        if (mounted.current) setResult({ success: false, message: 'Unable to import from GitHub. Please try again.' })
       } finally {
         submitting.current = false
-        onPendingChange(false)
+        if (mounted.current) onPendingChange(false)
       }
     })
   }

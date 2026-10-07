@@ -17,6 +17,7 @@ function compile(path, replacements = {}) {
 }
 const validation = compile('src/lib/project-validation.ts')
 const repository = compile('src/lib/github-repository.ts')
+const suggestionsModule = compile('src/lib/ai-suggestions.ts', { './github-repository': repository })
 const draftModule = compile('src/lib/admin-project-draft.ts', {
   './project-validation': validation, './github-repository': repository,
 })
@@ -39,22 +40,25 @@ const formReact = moduleUrl(`
 const { ProjectFormDialog } = await import(compile('src/components/admin/ProjectFormDialog.tsx', {
   react: formReact, 'next/navigation': moduleUrl('export function unstable_rethrow() {}'),
   '../../lib/project-validation': validation,
+  '../../lib/ai-suggestions': suggestionsModule,
   './Dialog': moduleUrl('export function Dialog() {}'), './Icon': moduleUrl('export function Icon() {}'),
   './TechnologyInput': moduleUrl('export function TechnologyInput() {}'), './PreviewImageInput': moduleUrl('export function PreviewImageInput() {}'),
 }))
 const { ProjectForm } = await import(compile('src/components/admin/ProjectForm.tsx', {
   react: formReact, '../../lib/admin-project-draft': draftModule,
   '../../app/admin/project-actions': moduleUrl('export async function createProject() { return globalThis.projectFormActionResult }; export async function updateProject() { throw new Error("Unexpected edit") }'),
-  './ProjectFormDialog': moduleUrl('export function ProjectFormDialog() {}'), './GithubImport': moduleUrl('export function GithubImport() {}'),
+  './ProjectFormDialog': moduleUrl('export function ProjectFormDialog() {}'), './ProjectPrefill': moduleUrl('export function ProjectPrefill() {}'),
 }))
 function formHarness(initialDraft = emptyProjectDraft()) {
   globalThis.projectFormHooks = { index: 0, slots: [] }
   let controls, element
   const changes = []
+  function FixturePrefill() {}
   function render() {
     globalThis.projectFormHooks.index = 0
     element = ProjectFormDialog({ mode: 'add', initialDraft, onClose() {}, onSaved() {}, async onSave() { return {success:false,message:'Fixture'} },
-      onDraftChange: draft => changes.push(draft), renderPrefill: value => { controls = value; return null } })
+      onDraftChange: draft => changes.push(draft), prefill: FixturePrefill })
+    controls = nodes(element).find(node => node.type === FixturePrefill).props
   }
   function nodes(node) {
     if (!node || typeof node !== 'object') return []
@@ -64,7 +68,9 @@ function formHarness(initialDraft = emptyProjectDraft()) {
   function find(predicate) { const node = nodes(element).find(predicate); assert.ok(node); return node }
   render()
   return { changes, render, field(name) { return find(node => node.props?.name === name) },
-    preview() { return find(node => node.type?.name === 'PreviewImageInput') }, import(fields) { controls.onApply(fields); render() } }
+    preview() { return find(node => node.type?.name === 'PreviewImageInput') }, import(fields) { controls.onApply(fields); render() },
+    ai(fields, repository) { const applied = controls.onApplySuggestions(fields, repository); render(); return applied },
+    controls() { return controls } }
 }
 function storage() {
   const entries = new Map()
@@ -118,6 +124,59 @@ test('GitHub imported fields and provenance survive preview interactions and rea
   assert.equal(form.field('importedGithubRepo').props.value, 'example/repository')
   assert.deepEqual(form.changes.at(-1).values.technologies, ['TypeScript'])
   assert.equal(form.changes.at(-1).importedRepository, 'example/repository')
+})
+
+test('AI applies exactly five fields through the real dialog draft callback and preserves previews and provenance', () => {
+  const form = formHarness(draft)
+  const preview = form.preview()
+  assert.equal(form.ai({title:'Suggested title',category:'Frontend',shortDescription:'Suggested short',description:'Suggested description',technologies:['React']},'example/repository'),true)
+  const updated = form.changes.at(-1)
+  assert.equal(updated.values.githubUrl,draft.values.githubUrl)
+  assert.equal(updated.values.productionUrl,draft.values.productionUrl)
+  assert.equal(updated.values.telegramUrl,draft.values.telegramUrl)
+  assert.equal(updated.values.visible,false)
+  assert.equal(updated.values.previewUrl,draft.values.previewUrl)
+  assert.equal(updated.previewMode,draft.previewMode)
+  assert.equal(updated.importedRepository,draft.importedRepository)
+  assert.equal(form.preview().type,preview.type)
+  assert.equal(form.preview().props.sourceUrl,preview.props.sourceUrl)
+  const tab = storage()
+  persistProjectDraft(tab,updated)
+  assert.deepEqual(loadProjectDraft(tab),updated)
+  assert.equal(loadProjectDraft(tab).values.title,'Suggested title')
+})
+
+test('stale AI callbacks cannot overwrite a changed repository or any draft fields', () => {
+  const form = formHarness(draft)
+  const oldCallback = form.controls().onApplySuggestions
+  form.field('githubUrl').props.onChange({target:{value:'https://github.com/another/repository'}}); form.render()
+  const before = structuredClone(form.changes.at(-1))
+  assert.equal(oldCallback({title:'Stale',category:'Stale',shortDescription:'Stale',description:'Stale',technologies:[]},'example/repository'),false)
+  form.render()
+  assert.deepEqual(form.changes.at(-1),before)
+  assert.equal(form.field('title').props.value,draft.values.title)
+})
+
+test('stale AI callbacks reject changed import provenance even when the repository identity is unchanged', () => {
+  const form = formHarness(draft)
+  const oldCallback = form.controls().onApplySuggestions
+  form.field('githubUrl').props.onChange({target:{value:'https://github.com/Example/Repository.git'}}); form.render()
+  const before = structuredClone(form.changes.at(-1))
+  assert.equal(before.importedRepository,null)
+  assert.equal(oldCallback({title:'Stale',category:'Stale',shortDescription:'Stale',description:'Stale',technologies:[]},'example/repository'),false)
+  form.render()
+  assert.deepEqual(form.changes.at(-1),before)
+  assert.equal(form.field('title').props.value,draft.values.title)
+})
+
+test('prefill pending disables other imports and form edits without clearing the draft', () => {
+  const form = formHarness(draft)
+  form.controls().onPendingChange(true); form.render()
+  assert.equal(form.controls().disabled,true)
+  assert.equal(form.field('title').props.value,draft.values.title)
+  form.controls().onPendingChange(false); form.render()
+  assert.equal(form.controls().disabled,false)
+  assert.equal(form.changes.length,0)
 })
 
 test('unfinished fields and GitHub metadata restore after reopening or refresh without full-form validity', () => {
