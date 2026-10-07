@@ -229,6 +229,7 @@ src/
     admin/actions.ts  Authentication-only sign-in and sign-out actions
     admin/project-actions.ts  Authorized create/update/delete Server Actions
     admin/order-actions.ts  Authorized atomic project-order Server Action
+    admin/github-actions.ts  Authorized read-only GitHub metadata import
     cms-demo/page.tsx  Public CMS demo; server-read visible project snapshot
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
@@ -236,6 +237,9 @@ src/
   lib/
     projects.ts     Server-only query and database-to-UI mapping
     project-validation.ts  Allowed fields, bounds, URLs and repository mapping
+    github-repository.ts  Strict GitHub URL validation and normalized identity
+    github-import.ts  Bounded server-only public GitHub metadata/language reads
+    github-projects.ts  Authenticated, case-insensitive duplicate lookup
     project-order.ts  Saved/draft ordering, control guards and ID validation
     cms-demo.ts      Local demo state, validated tab storage and blob lifetimes
     preview-file.ts  Shared size/type/signature validation
@@ -265,6 +269,7 @@ tests/
   projects.test.mjs  Isolated validation/action/Storage tests; no production access
   project-order.test.mjs  Ordering state, validation and authorized RPC tests
   cms-demo.test.mjs  Local interactions, persistence, previews and import isolation
+  github-import.test.mjs  URL/API normalization, errors, duplicates and read-only import
   fixtures/         Small JPEG, PNG and WebP validation fixtures
 public/
   assets/           Original portfolio preview images
@@ -299,7 +304,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-AI, GitHub imports and screenshot generation remain future work. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
+AI and screenshot generation remain future work. GitHub import is available only in the real CMS Add Project form. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
 
 ## CMS Interface
 
@@ -312,6 +317,7 @@ The interface includes:
 - Immediate local search by title, category and technology, with a no-results state.
 - Compact rows with previews, published/hidden status, positions, technologies and available project links.
 - A shared Add/Edit dialog with project fields, technology chips and visibility. Save persists validated changes; closing or cancelling discards the draft. Failed saves retain entered values and display field or generic errors.
+- A compact GitHub import section in the real Add Project form. Public repository metadata fills editable fields; import itself never saves a project or uploads a preview.
 - Optional preview selection/replacement with a local image preview and filename. Upload starts only on Save; cancelling creates no Storage object. An existing URL/local asset remains available as a secondary option.
 - Explicit delete confirmation with a pending state, error feedback and focus restoration after deletion.
 - Dedicated mouse/touch drag handles, keyboard Arrow Up/Down and Move Up/Down buttons. Reordering changes only the draft until Save order; Reset adopts the latest saved order. Clear search before reordering so moves always correspond to the complete list.
@@ -371,11 +377,27 @@ No write privilege is granted to `anon` or on `admin_users`. Authenticated non-m
 
 Validation uses a small TypeScript allowlist without additional dependencies. Required title/category/description values are trimmed and bounded; optional blanks become NULL. Links require valid HTTP(S) URLs without credentials. Preview paths may start with `/assets/`; production paths may start with `/projects/`. Unsafe protocols, malformed URLs and local path traversal are rejected. Technologies are trimmed, deduplicated and bounded to 30 values of at most 50 characters; visibility must be a boolean. Errors returned to the browser never contain raw database details.
 
-Creation generates a server UUID, sets `source = 'manual'`, derives `github_repo` from normal GitHub repository URLs, supplies server timestamps and appends at the highest stored position plus one (zero for an empty table). Editing uses explicit allowed columns and preserves ID, source, creation time and stored position. Delete targets one validated UUID and requires confirmation. Missing rows are reported as unavailable rather than successful mutations.
+Creation generates a server UUID, sets `source = 'manual'` for ordinary entries or `github` for a reviewed GitHub import, derives `github_repo` from normal GitHub repository URLs, supplies server timestamps and appends at the highest stored position plus one (zero for an empty table). Editing uses explicit allowed columns and preserves ID, source, creation time and stored position. Delete targets one validated UUID and requires confirmation. Missing rows are reported as unavailable rather than successful mutations.
 
 Concurrent additions may share a position; UUID secondary ordering remains deterministic. Stage 8 adds atomic ordering without changing CRUD position allocation. Preview references remain in the existing `preview_url` text column; Stage 7 adds uploads while preserving local and external URLs.
 
 Live verification created only a hidden `CMS CRUD Test`, verified that it persisted in `/admin` while remaining absent from `/`, edited it, and deleted it. The authenticated dashboard returned to exactly ten projects, and every original row—including IDs, content, positions, visibility and timestamps—matched the pre-test snapshot. Live logged-out direct action calls were denied. Controlled authenticated non-member sessions also verified direct denial by all three actual Server Actions, with identity/membership rechecked and no project query executed. `supabase/verify-admin-project-writes.sql` independently verified administrator CRUD, anonymous denial, non-administrator RLS denial and hidden-row access inside a rollback-only transaction, ending with ten original projects and zero test rows. It can be rerun intentionally in the SQL Editor after cleanup; never commit that verification transaction.
+
+## GitHub Import (Stage 10)
+
+The protected Add Project dialog accepts `https://github.com/owner/repository` with optional `.git` and trailing slash. `importGithubRepository()` independently calls `requireAdmin()` before input validation, duplicate checks or GitHub requests. The browser invokes this Server Action and never requests GitHub directly. Import performs reads only; review/edit the populated form and use the existing Save project button to create a project. Cancelling discards imported data without touching projects or Storage.
+
+URL validation permits only the exact HTTPS GitHub host and two bounded owner/repository segments. Credentials, ports, query/fragment suffixes, encoded separators, traversal, extra segments and invalid names are rejected. The server constructs fixed `https://api.github.com/repos/{owner}/{repo}` and `/languages` URLs from that identity. Redirects are not followed; moved repositories require their current URL. Requests use `Accept: application/vnd.github+json`, `User-Agent: Portfolio-CMS/1.0` and the current `X-GitHub-Api-Version: 2026-03-10`. See [GitHub repository endpoints](https://docs.github.com/en/rest/repos/repos) and [API versioning](https://docs.github.com/en/rest/about-the-rest-api/api-versions).
+
+There is no GitHub token, environment variable, OAuth, GitHub App or added dependency. Only public repositories are accessible. Unauthenticated API requests share GitHub's per-IP rate limit, including deployments with shared egress; each successful import uses two requests. Exhaustion returns “GitHub API rate limit reached. Please try again later.” See [GitHub REST rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api). Each request times out after ten seconds, and streamed JSON is bounded to 256 KiB for metadata and 32 KiB for languages. Missing/private repositories, access failures, redirects, invalid responses and network outages return safe messages without raw response bodies. Archived repositories produce a non-blocking warning.
+
+Mapping is deterministic: repository name → title; plain description → short/full description; canonical repository URL → GitHub URL; valid HTTP(S) homepage → production URL; language names → technology chips ordered by code-byte count with stable name ties. No framework inference, marketing copy, README/image fetching, AI or screenshots occurs. Missing descriptions/homepages/languages remain empty for review. Category is left for manual selection; visibility, Telegram URL and any selected/local preview are preserved.
+
+Repository identity is normalized to lowercase `owner/repository`. Import checks existing `github_repo` values using the authenticated client's case-insensitive literal lookup, including hidden projects and legacy mixed-case values. Creation repeats that check before any upload or INSERT. The server derives the stored repository from the validated GitHub URL and sets `source = 'github'` only when the import marker matches it; submitted source/position/ID/timestamps remain ignored. Manually changing the GitHub URL clears the marker. The marker classifies an administrator-reviewed entry, rather than proving GitHub provenance. This application-level duplicate guard is best-effort under concurrent creates or edits: no UNIQUE constraint, transaction/RPC or database migration was added.
+
+`GithubImport` and the real form adapter alone import the protected action. The shared form accepts a presentation-only prefill slot; `/cms-demo` supplies no slot and its complete client import graph cannot reach GitHub fetching/actions, authenticated clients, Storage or real mutations. Existing RLS, grants, authentication, preview cleanup and atomic ordering remain unchanged.
+
+Verification covers URL/response/language normalization, rate limits, bounded bodies, duplicates, independent authorization, read-only import and demo isolation. Isolated browser fixtures exercise loading/errors, editable prefill, selected-preview preservation and the existing Create/upload/delete cleanup flow. Live administrator verification imported `vercel/next.js` twice, edited fields locally and cancelled without saving; all ten complete production rows, positions 0–9, preview URLs and the empty Storage inventory matched the pre-test snapshots. Logged-out direct import calls were denied. Homepage cards/images/links, the CMS Demo promo, anonymous demo, five static demos, logout, 320px/375px/768px/1440px layouts and zero console errors were verified.
 
 ## Project Preview Storage (Stage 7)
 

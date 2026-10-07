@@ -1,9 +1,10 @@
 'use client'
 
 import { useActionState, useId, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import type { AdminProject } from '../../types/admin-project'
-import type { ProjectFormValues, ProjectSaveResult } from '../../types/project-form'
+import type { ProjectFormPrefill, ProjectFormValues, ProjectSaveResult } from '../../types/project-form'
 import { projectLimits } from '../../lib/project-validation'
 import { Dialog } from './Dialog'
 import { Icon } from './Icon'
@@ -12,18 +13,21 @@ import { PreviewImageInput } from './PreviewImageInput'
 
 const inputClass = 'w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400'
 
-export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSave, localOnly = false }: {
+export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSave, renderPrefill, localOnly = false }: {
   mode: 'add' | 'edit'
   onSave: (formData: FormData) => Promise<ProjectSaveResult>
   localOnly?: boolean
   initialProject?: AdminProject
   onClose: () => void
   onSaved: (project: AdminProject) => void
+  renderPrefill?: (controls: { disabled: boolean; onApply: (fields: ProjectFormPrefill) => void; onPendingChange: (pending: boolean) => void }) => ReactNode
 }) {
   const id = useId()
   const submitting = useRef(false)
   const [previewReady, setPreviewReady] = useState(true)
   const [previewMode, setPreviewMode] = useState<'keep' | 'url'>('keep')
+  const [prefillPending, setPrefillPending] = useState(false)
+  const [importedRepository, setImportedRepository] = useState<string | null>(null)
   const [values, setValues] = useState<ProjectFormValues>({
     title: initialProject?.title ?? '',
     category: initialProject?.category ?? '',
@@ -53,6 +57,7 @@ export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSa
     }
   }, null)
   const errors = result?.success === false ? result.errors : undefined
+  const busy = pending || prefillPending
   function field<K extends keyof ProjectFormValues>(name: K, value: ProjectFormValues[K]) {
     setValues((current) => ({ ...current, [name]: value }))
   }
@@ -66,22 +71,27 @@ export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSa
   ] as const
 
   return (
-    <Dialog onClose={onClose} busy={pending} titleId={`${id}-title`} descriptionId={`${id}-description`}>
+    <Dialog onClose={onClose} busy={busy} titleId={`${id}-title`} descriptionId={`${id}-description`}>
       <form action={save} onSubmit={(event) => {
-        if (submitting.current || !previewReady) event.preventDefault()
+        if (submitting.current || prefillPending || !previewReady) event.preventDefault()
         else submitting.current = true
-      }} onReset={(event) => event.preventDefault()} aria-busy={pending} className="flex max-h-[calc(100dvh-32px)] flex-col">
+      }} onReset={(event) => event.preventDefault()} aria-busy={busy} className="flex max-h-[calc(100dvh-32px)] flex-col">
         <input type="hidden" name="previewMode" value={previewMode} />
+        {importedRepository && <input type="hidden" name="importedGithubRepo" value={importedRepository} />}
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
           <div>
             <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">{mode === 'edit' ? 'Edit project' : 'Add project'}</h2>
             <p id={`${id}-description`} className="mt-1 text-xs text-zinc-500">{localOnly ? 'Save changes in this demo only. The live portfolio stays unchanged.' : 'Save changes to your portfolio. Unsaved changes are discarded when you close.'}</p>
           </div>
-          <button type="button" onClick={onClose} disabled={pending} aria-label="Close project form" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-900 disabled:opacity-40"><Icon name="close" /></button>
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Close project form" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-900 disabled:opacity-40"><Icon name="close" /></button>
         </div>
 
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-6 sm:px-7">
-          <fieldset disabled={pending} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
+          {renderPrefill?.({ disabled: pending, onPendingChange: setPrefillPending, onApply: ({ githubRepository, ...fields }) => {
+            setValues((current) => ({ ...current, ...fields, technologies: [...fields.technologies] }))
+            setImportedRepository(githubRepository)
+          } })}
+          <fieldset disabled={busy} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <label htmlFor={`${id}-name`} className="mb-2 block text-xs font-medium text-zinc-700">Title <span aria-hidden="true">*</span></label>
               <input id={`${id}-name`} name="title" required maxLength={projectLimits.title} data-dialog-focus value={values.title} onChange={(event) => field('title', event.target.value)} aria-invalid={Boolean(errors?.title)} aria-describedby={errors?.title ? `${id}-title-error` : undefined} placeholder="Project name" className={inputClass} />
@@ -108,7 +118,10 @@ export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSa
             {links.map((field) => (
               <div key={field.name} className="min-w-0">
                 <label htmlFor={`${id}-${field.name}`} className="mb-2 block text-xs font-medium text-zinc-700">{field.label} <span className="font-normal text-zinc-500">optional</span></label>
-                <input id={`${id}-${field.name}`} name={field.name} type={field.type} inputMode="url" maxLength={projectLimits.url} value={values[field.name]} onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))} aria-invalid={Boolean(errors?.[field.name])} aria-describedby={errors?.[field.name] ? `${id}-${field.name}-error` : undefined} placeholder={field.placeholder} className={inputClass} />
+                <input id={`${id}-${field.name}`} name={field.name} type={field.type} inputMode="url" maxLength={projectLimits.url} value={values[field.name]} onChange={(event) => {
+                  setValues((current) => ({ ...current, [field.name]: event.target.value }))
+                  if (field.name === 'githubUrl') setImportedRepository(null)
+                }} aria-invalid={Boolean(errors?.[field.name])} aria-describedby={errors?.[field.name] ? `${id}-${field.name}-error` : undefined} placeholder={field.placeholder} className={inputClass} />
                 {feedback(field.name)}
               </div>
             ))}
@@ -130,8 +143,8 @@ export function ProjectFormDialog({ mode, initialProject, onClose, onSaved, onSa
             <p role="status" className="text-[11px] text-zinc-500">{pending ? 'Saving project…' : 'Project order is managed separately.'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} disabled={pending} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Cancel</button>
-            <button type="submit" disabled={pending || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
+            <button type="button" onClick={onClose} disabled={busy} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Cancel</button>
+            <button type="submit" disabled={busy || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
           </div>
         </div>
       </form>

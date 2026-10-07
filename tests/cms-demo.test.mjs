@@ -203,6 +203,7 @@ test('demo client import graph cannot reach real actions, auth, Supabase clients
   for (const path of graph.paths) {
     assert.ok(!path.startsWith('src/app/admin/'), path)
     assert.ok(!/src\/lib\/(auth|supabase\/|project-previews|projects\.ts)/.test(path), path)
+    assert.ok(!/GithubImport|github-import|github-projects|github-actions/.test(path), path)
     assert.ok(!/['"]use server['"]/.test(source(path)), path)
     assert.ok(!/\.(rpc|auth|storage)\b|\bfetch\s*\(/.test(source(path)), path)
   }

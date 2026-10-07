@@ -40,10 +40,13 @@ const projectsUrl = compile('src/lib/projects.ts', {
   'server-only': moduleUrl(''), './auth': authUrl,
   './supabase/public': moduleUrl('export const supabase = {}'),
 })
+const githubRepositoryUrl = compile('src/lib/github-repository.ts')
+const githubProjectsUrl = compile('src/lib/github-projects.ts', { 'server-only': moduleUrl('') })
 const actions = await import(compile('src/app/admin/project-actions.ts', {
   '../../lib/auth': authUrl, 'next/cache': cacheUrl,
   '../../lib/projects': projectsUrl, '../../lib/project-validation': validationUrl,
   'next/navigation': navigationUrl, '../../lib/preview-file': previewFileUrl, '../../lib/project-previews': previewsUrl,
+  '../../lib/github-repository': githubRepositoryUrl, '../../lib/github-projects': githubProjectsUrl,
 }))
 
 const input = {
@@ -79,13 +82,14 @@ function setup({ allowed = true, rows = [row], error = null, throws = false, fai
   const state = { rows: structuredClone(rows), queries: [], revalidated: [], authorizations: 0, error, storageOps: [], objects: new Map(), events: [] }
   const supabase = { from(table) {
     assert.equal(table, 'projects', 'Mutations must never query admin_users for writes.')
-    const query = { operation: 'read', filters: {}, payload: null, columns: '' }
+    const query = { operation: 'read', filters: {}, payload: null, columns: '', repository: null }
     function execute() {
       state.queries.push(structuredClone(query))
       state.events.push('database:' + query.operation)
       if (throws) throw new Error('PRIVATE_FIXTURE_NETWORK_DETAIL')
       if (state.error || failOperation === query.operation) return { data: null, error: { code: '42501', message: 'PRIVATE_FIXTURE_DATABASE_DETAIL' } }
       if (query.operation === 'read') {
+        if (query.repository !== null) return { data: state.rows.find(item => item.github_repo?.toLowerCase() === query.repository) ?? null, error: null }
         if (query.columns !== 'position') return { data: state.rows.find(item => Object.entries(query.filters).every(([key, value]) => item[key] === value)) ?? null, error: null }
         const highest = [...state.rows].sort((a, b) => b.position - a.position)[0]
         return { data: highest ? { position: highest.position } : null, error: null }
@@ -107,6 +111,7 @@ function setup({ allowed = true, rows = [row], error = null, throws = false, fai
       select(columns) { query.columns = columns; return builder },
       order() { return builder }, limit() { return builder }, abortSignal() { return builder },
       eq(column, value) { assert.ok(['id', 'preview_url'].includes(column)); query.filters[column] = value; return builder },
+      ilike(column, value) { assert.equal(column, 'github_repo'); query.repository = value.replace(/\\([\\%_])/g, '$1').toLowerCase(); return builder },
       is(column, value) { assert.equal(column, 'preview_url'); query.filters[column] = value; return builder },
       insert(payload) { query.operation = 'insert'; query.payload = payload; return builder },
       update(payload) { query.operation = 'update'; query.payload = payload; return builder },
@@ -228,6 +233,35 @@ test('empty-table creates start at position zero; invalid input makes no query',
   assert.deepEqual(state.queries, [])
   assert.equal((await actions.createProject(form())).success, true)
   assert.equal(state.rows[0].position, 0)
+})
+
+test('final create guard blocks mixed-case duplicate repositories before upload or INSERT', async () => {
+  const state = setup({ rows: [{ ...row, github_repo: 'Example/Repository' }] })
+  const result = await actions.createProject(form(input, image()))
+  assert.equal(result.success, false)
+  assert.equal(result.message, 'This GitHub repository has already been added.')
+  assert.equal(state.rows.length, 1)
+  assert.deepEqual(state.storageOps, [])
+  assert.equal(state.queries.some(query => query.operation !== 'read'), false)
+  assert.deepEqual(state.revalidated, [])
+})
+
+test('reviewed import uses server-derived github source and repository; arbitrary source is ignored', async () => {
+  const state = setup()
+  const data = form({ ...input, githubUrl: 'https://github.com/Example/Repository', source: 'ai' })
+  data.set('importedGithubRepo', 'example/repository')
+  assert.equal((await actions.createProject(data)).success, true)
+  assert.equal(state.rows.at(-1).source, 'github')
+  assert.equal(state.rows.at(-1).github_repo, 'example/repository')
+})
+
+test('mismatched import provenance fails before queries or uploads', async () => {
+  const state = setup()
+  const data = form(input, image())
+  data.set('importedGithubRepo', 'someone/else')
+  assert.equal((await actions.createProject(data)).success, false)
+  assert.deepEqual(state.queries, [])
+  assert.deepEqual(state.storageOps, [])
 })
 
 test('updates preserve identity, source, created time and position despite tampered input', async () => {

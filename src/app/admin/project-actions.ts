@@ -8,6 +8,8 @@ import { deriveGithubRepo, isProjectId, parseProjectFormData, validateProject } 
 import { validatePreviewFile } from '../../lib/preview-file'
 import { removeProjectPreview, uploadProjectPreview } from '../../lib/project-previews'
 import { projectColumns, toAdminProject } from '../../lib/projects'
+import { findGithubProject } from '../../lib/github-projects'
+import { parseGithubRepository } from '../../lib/github-repository'
 import type { ProjectDeleteResult, ProjectSaveResult } from '../../types/project-form'
 import type { AdminProject } from '../../types/admin-project'
 
@@ -43,6 +45,13 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
   const { supabase } = await requireAdmin()
   const validated = parseProjectFormData(input)
   if (!validated.success) return { success: false, message: 'Please correct the highlighted fields.', errors: validated.errors }
+  const githubRepo = deriveGithubRepo(validated.project.githubUrl)?.toLowerCase() ?? null
+  const importedRepo = input instanceof FormData ? input.get('importedGithubRepo') : null
+  // The marker only classifies an administrator-reviewed import. Never accept
+  // a submitted source or repository value independently of the validated URL.
+  if (importedRepo !== null && (typeof importedRepo !== 'string' || !githubRepo || importedRepo !== githubRepo || parseGithubRepository(`https://github.com/${importedRepo}`)?.repository !== githubRepo)) {
+    return { success: false, message: 'Please correct the highlighted fields.', errors: { githubUrl: 'Review the GitHub repository URL before saving.' } }
+  }
   if (validated.file) {
     const image = await validatePreviewFile(validated.file)
     if (!image.success) return { success: false, message: image.message, errors: { previewFile: image.message } }
@@ -52,6 +61,11 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
   let uploaded: string | null = null
   let saved: AdminProject | undefined
   try {
+    if (githubRepo) {
+      const existing = await findGithubProject(supabase, githubRepo)
+      if (existing.error) return { success: false, message: 'Unable to save the project. Please try again.' }
+      if (existing.exists) return { success: false, message: 'This GitHub repository has already been added.', errors: { githubUrl: 'This GitHub repository has already been added.' } }
+    }
     const { data: last, error: positionError } = await supabase
       .from('projects').select('position').order('position', { ascending: false })
       .limit(1).abortSignal(AbortSignal.timeout(10_000)).maybeSingle()
@@ -67,6 +81,7 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
     // Concurrent additions may share a position; the existing UUID secondary
     // ordering is deterministic. Persistent ordering/locking is a later stage.
     const fields = databaseFields(validated.project)
+    fields.github_repo = githubRepo
     if (validated.file) {
       const upload = await uploadProjectPreview(id, validated.file)
       if (!upload.success) return { success: false, message: upload.message, errors: { previewFile: upload.message } }
@@ -76,7 +91,7 @@ export async function createProject(input: unknown): Promise<ProjectSaveResult> 
     const { data, error } = await supabase.from('projects').insert({
       ...fields,
       id,
-      source: 'manual',
+      source: importedRepo ? 'github' : 'manual',
       position,
       created_at: fields.updated_at,
     }).select(projectColumns).abortSignal(AbortSignal.timeout(10_000)).single()
