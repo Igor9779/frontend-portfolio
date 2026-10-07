@@ -91,6 +91,13 @@ export async function getProjects(): Promise<Project[]> {
   return rows.map(toProject)
 }
 
+// Public demo snapshot: anonymous client, visible rows, presentation fields only.
+// Never reuse the administrator query or request cookies for this route.
+export async function getDemoProjects(): Promise<AdminProject[]> {
+  const rows = await readProjectRows(supabase, { visibleOnly: true })
+  return rows.map(toAdminProject)
+}
+
 // Verified administrators read visible and hidden rows using their own session.
 export async function getAdminProjects(): Promise<AdminProject[]> {
   const { supabase: adminClient } = await requireAdmin()

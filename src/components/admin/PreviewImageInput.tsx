@@ -4,7 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { previewMimeTypes, validatePreviewFile } from '../../lib/preview-file'
 import { projectLimits } from '../../lib/project-validation'
 
-export function PreviewImageInput({ currentPreview, sourceUrl, onSourceChange, onValidityChange, fileError, urlError }: {
+export function PreviewImageInput({ currentPreview, sourceUrl, onSourceChange, onValidityChange, fileError, urlError, localOnly = false }: {
+  localOnly?: boolean
   currentPreview: string | null
   sourceUrl: string
   onSourceChange: (value: string) => void
@@ -68,12 +69,12 @@ export function PreviewImageInput({ currentPreview, sourceUrl, onSourceChange, o
           <div className="aspect-video overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
             <img src={preview} alt={selection ? 'Selected preview image' : 'Current project preview'} className="h-full w-full object-contain" />
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">{selection ? 'Selected image · Uploads when you save' : 'Current preview · Kept unless replaced'}</p>
+          <p className="mt-2 text-[11px] text-zinc-500">{selection ? (localOnly ? 'Selected image · Stays in this demo' : 'Selected image · Uploads when you save') : 'Current preview · Kept unless replaced'}</p>
         </div>
       )}
       <label htmlFor={`${id}-file`} className="mb-2 block text-xs font-medium text-zinc-700">{currentPreview ? 'Replace preview' : 'Choose preview image'}</label>
       <input ref={input} id={`${id}-file`} name="previewFile" type="file" accept={previewMimeTypes.join(',')} onChange={selectFile} aria-invalid={Boolean(feedback)} aria-describedby={`${id}-hint${feedback ? ` ${id}-error` : ''}`} className="block w-full min-w-0 rounded-md border border-zinc-300 bg-white p-2 text-xs text-zinc-600 file:mr-3 file:rounded file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-medium file:text-zinc-800 hover:file:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900" />
-      <p id={`${id}-hint`} className="mt-2 text-[11px] leading-5 text-zinc-500">JPEG, PNG or WebP · Maximum 5 MB. Selecting a file does not upload it.</p>
+      <p id={`${id}-hint`} className="mt-2 text-[11px] leading-5 text-zinc-500">JPEG, PNG or WebP · Maximum 5 MB. {localOnly ? 'Files stay on your device; they are never uploaded.' : 'Selecting a file does not upload it.'}</p>
       <p role="status" className={checking || selection ? 'mt-2 text-xs break-all text-zinc-600' : 'sr-only'}>{checking ? 'Checking image…' : selection?.name ?? 'No replacement selected.'}</p>
       {feedback && <p id={`${id}-error`} role="alert" className="mt-2 text-xs text-red-700">{feedback}</p>}
       {(selection || clientError) && <button type="button" onClick={clearSelection} className="mt-3 min-h-8 rounded border border-zinc-200 px-2.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-zinc-900">Clear selection</button>}

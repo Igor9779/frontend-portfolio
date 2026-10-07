@@ -229,13 +229,15 @@ src/
     admin/actions.ts  Authentication-only sign-in and sign-out actions
     admin/project-actions.ts  Authorized create/update/delete Server Actions
     admin/order-actions.ts  Authorized atomic project-order Server Action
-    cms-demo/page.tsx  Temporary public demo placeholder
+    cms-demo/page.tsx  Public CMS demo; server-read visible project snapshot
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
+    demo/CmsDemo.tsx  Anonymous demo workspace with browser-local handlers
   lib/
     projects.ts     Server-only query and database-to-UI mapping
     project-validation.ts  Allowed fields, bounds, URLs and repository mapping
     project-order.ts  Saved/draft ordering, control guards and ID validation
+    cms-demo.ts      Local demo state, validated tab storage and blob lifetimes
     preview-file.ts  Shared size/type/signature validation
     preview-path.ts  Strict managed preview URL recognition
     project-previews.ts  Authorized server uploads and compensating cleanup
@@ -262,6 +264,7 @@ supabase/
 tests/
   projects.test.mjs  Isolated validation/action/Storage tests; no production access
   project-order.test.mjs  Ordering state, validation and authorized RPC tests
+  cms-demo.test.mjs  Local interactions, persistence, previews and import isolation
   fixtures/         Small JPEG, PNG and WebP validation fixtures
 public/
   assets/           Original portfolio preview images
@@ -286,9 +289,9 @@ The application currently uses root-relative URLs for local previews, demo links
 - `/` — portfolio backed by the ten visible Supabase projects.
 - `/admin` — protected project management with administrator CRUD and persistent ordering.
 - `/admin/login` — private administrator sign-in; no registration.
-- `/cms-demo` — temporary page: “Portfolio CMS Demo — coming next.”
+- `/cms-demo` — public interactive CMS demonstration; changes stay in the visitor's tab.
 
-The CMS routes are excluded from search indexing. The portfolio and `/cms-demo` are public. `/admin` requires Supabase Auth and membership in `public.admin_users`. Its project mutations independently repeat this authorization in Server Actions and use the authenticated user's Supabase client. `/cms-demo` remains a text-only placeholder with no mutation integration.
+The CMS routes are excluded from search indexing. The portfolio and `/cms-demo` are public. `/admin` requires Supabase Auth and membership in `public.admin_users`. Its project mutations independently repeat this authorization in Server Actions and use the authenticated user's Supabase client. `/cms-demo` needs no sign-in and has only local mutation handlers, with no real administrator action integration.
 
 The homepage awaits `getProjects()` from `src/lib/projects.ts`, then passes frontend `Project` objects into `Projects`. `ProjectCard` receives each project through props and does not depend on Supabase. The server maps database column names to the existing card model and button labels. Only visible rows are selected, ordered by `position` ascending and then UUID `id` ascending for deterministic ties. RLS remains the database's access boundary.
 
@@ -296,7 +299,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-Public CMS Demo Mode, AI, GitHub imports and screenshot generation remain future work. Database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key.
+AI, GitHub imports and screenshot generation remain future work. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
 
 ## CMS Interface
 
@@ -316,6 +319,28 @@ The interface includes:
 
 Add, Edit and Delete are disabled while order changes are unsaved or a save is pending. Save or Reset the order first; this avoids changing the project set under a local draft. `/cms-demo`, the public portfolio and the unchanged static demo files remain separate from the management interface.
 
+## Public CMS Demo (Stage 9)
+
+`/cms-demo` renders a public workspace with a Demo Mode notice, Back to portfolio link and Reset demo control. Its server page calls `getDemoProjects()` through the same anonymous, uncached row-reading helper as the portfolio, always with `visible = true`. It serializes only presentation/form fields, including public project IDs; hidden rows, internal source/repository/timestamp fields, cookies and credentials are not supplied to the demo. The initial snapshot contains the ten visible production projects.
+
+The real and demo workspaces reuse `AdminProjectCard`, `ProjectDragHandle`, `ProjectFormDialog`, `ProjectDeleteDialog`, `PreviewImageInput`, `TechnologyInput` and the accessible native `Dialog`. Real `ProjectForm` and `DeleteProjectDialog` are small adapters that import the existing protected Server Actions. The shared dialogs accept callbacks and contain no real mutation imports. `CmsDemo` supplies separate browser-local callbacks; its client import graph cannot reach administrator actions, authorization, Supabase clients, Storage helpers or the ordering RPC. The `localOnly` presentation option changes explanatory text, not a security-sensitive mutation implementation.
+
+Demo Add generates a browser UUID and appends a local project. Edit retains its ID and changes only local fields, including visibility. Delete requires confirmation and removes only the local project. Shared form/file validation supplies the same field limits and useful errors. The demo supports up to 100 projects to bound stored data. No demo Server Action, API route, authentication request, upload or database mutation is implemented.
+
+Drag handles, mouse/touch input, keyboard Arrow Up/Down and Move Up/Down use the existing ordering utilities. Changes affect a separate draft; Save order updates only the local saved order and normalizes local positions. Reset order restores the last locally saved order. Search disables every reorder control, and unsaved ordering blocks Add/Edit/Delete, matching `/admin`. Stage 8's atomic production RPC and its authenticated Server Action remain separate and unchanged.
+
+Text, visibility, saved order and draft order persist in `sessionStorage` under `portfolio:cms-demo:v1`, scoped to the browser tab. Parsing checks the version, size, field allowlist, URLs, UUIDs, duplicates and complete ordering sets; corrupt or unsafe data falls back to the initial snapshot. Browser storage restrictions or quota failures degrade to React state for the current page, with an explanatory notice. The workspace mounts after hydration so stored changes cannot cause server/client HTML mismatches. No project data is stored in cookies or on the server.
+
+Selected JPEG, PNG and WebP files up to 5 MB stay on the visitor's device. MIME/extension, size and signature checks run locally; SVG and other formats are rejected. The picker owns its temporary selection URL. Saving creates a separate workspace-owned object URL so the row keeps its preview after the dialog closes. Replacement, deletion, Reset demo and unmount revoke unused owned URLs without touching local assets or remote images. Blob URLs and file bytes are never persisted. After refresh/navigation, textual changes remain and selected images fall back to the prior stable preview URL, or no preview for a newly added project.
+
+Reset demo asks for confirmation, restores the page's initial public snapshot, removes demo-created projects and edits, restores visibility and ordering, clears the dirty draft/search, replaces the stored demo state and releases obsolete image URLs. Closing/cancelling a form discards its draft without uploading anything. There are no public links to administrator login in the demo.
+
+Stage 9 verification passed 60 automated tests, TypeScript, ESLint and the production build. The architectural test traverses the actual client import graph; separate tests exercise the anonymous visible-only query, local CRUD/visibility, draft/saved sorting, reset, storage parsing/fallback and preview lifetimes. Anonymous live Chrome checks covered all demo interactions, keyboard/focus/Escape behavior, mouse/touch drag and 320px/375px/768px/1440px layouts. Browser/server audits recorded zero demo Server Action, Auth, RPC, database-write or Storage-mutation requests and zero console errors. Administrator form/preview regression tests ran against fully isolated Supabase/Auth fixtures; production write verification was unnecessary for this UI extraction.
+
+Public portfolio previews, content, links and all five static demo routes passed read-only checks. Full project and Storage fingerprints from SELECT-only SQL before and after testing matched exactly: ten original projects, normalized positions 0–9, unchanged project fields/preview URLs and zero Storage objects. No database migration, RLS policy, table grant, bucket, authentication change, service-role credential or dependency was added.
+
+Future GitHub import must preserve this boundary: authenticated production orchestration belongs only to the real CMS adapter; a public demonstration must use local fixture/preview data and must not import the real action or access private integrations.
+
 ## Atomic Project Ordering (Stage 8)
 
 `AdminProjects` keeps separate saved and draft ID arrays. Dragging by the dedicated handle or using the keyboard/buttons changes only the draft. Save and Reset are disabled when unchanged, and search disables all ordering controls. Pending saves prevent duplicate submission and further edits. Failed saves keep the draft; an authoritative server refresh exposes concurrent changes without silently replacing its original baseline. Reset explicitly adopts the latest saved list.
@@ -328,7 +353,7 @@ Inside the RPC transaction, `SHARE ROW EXCLUSIVE` blocks concurrent INSERT/UPDAT
 
 The SELECT-only verification file inspects configuration without invoking the RPC. Live application verification saved a two-project swap, confirmed persistence after dashboard refresh and the public order change, then restored and refreshed the exact original order. Every field of the original ten records matched the initial snapshot, positions returned to 0–9, preview URLs stayed unchanged, and read-only Storage inventories remained empty. A real stale-baseline request and anonymous RPC execution were denied. Controlled browser tests independently verified authenticated non-member Server Action denial without contacting production Supabase.
 
-The 47 automated tests include ordering state/validation/action contracts and all existing CRUD/Storage checks. Browser verification covers mouse and touch drag, keyboard fallback/focus, search guards, dirty-order CRUD protection, failure preservation, stale-order recovery, hidden-project inclusion and 320px/375px/768px/1440px layouts. The public portfolio, project links, static demos, authentication/logout and `/cms-demo` were verified with zero CMS console errors and no direct browser Supabase mutations. No new runtime dependency or service-role credential is introduced.
+Stage 8 verification ran 47 automated tests covering ordering state/validation/action contracts and the existing CRUD/Storage checks. Browser verification covered mouse and touch drag, keyboard fallback/focus, search guards, dirty-order CRUD protection, failure preservation, stale-order recovery, hidden-project inclusion and 320px/375px/768px/1440px layouts. The public portfolio, project links, static demos, authentication/logout and the then-placeholder `/cms-demo` were verified with zero CMS console errors and no direct browser Supabase mutations. No new runtime dependency or service-role credential was introduced.
 
 Existing creation still reads the highest position and inserts separately; concurrent additions can share a position, with deterministic UUID tie-breaking. Creates/deletes may leave gaps. A successful reorder normalizes the complete set at commit; this stage does not change CRUD allocation or maintain dense positions after every later mutation.
 
