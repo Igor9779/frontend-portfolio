@@ -114,6 +114,28 @@ export function isProjectId(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
+export function parseProjectFormData(input: unknown) {
+  if (!(input instanceof FormData)) return { success: false as const, errors: { title: 'Submit the project form again.' } }
+  const selected = input.get('previewFile')
+  const file = selected instanceof File && !(selected.size === 0 && selected.name === '') ? selected : null
+  const previewMode = input.get('previewMode') ?? 'url'
+  const errors: ProjectFieldErrors = {}
+  if (selected !== null && !(selected instanceof File)) errors.previewFile = 'Choose a JPEG, PNG or WebP image.'
+  if (previewMode !== 'keep' && previewMode !== 'url') errors.previewUrl = 'Choose a supported preview source.'
+  const visible = input.get('visible')
+  const validated = validateProject({
+    title: input.get('title'), category: input.get('category'),
+    shortDescription: input.get('shortDescription'), description: input.get('description'),
+    previewUrl: previewMode === 'url' && !file ? input.get('previewUrl') : '',
+    githubUrl: input.get('githubUrl'), productionUrl: input.get('productionUrl'), telegramUrl: input.get('telegramUrl'),
+    technologies: input.getAll('technologies'), visible: visible === null ? false : visible === 'on' ? true : visible,
+  })
+  if (!validated.success || Object.keys(errors).length) return {
+    success: false as const, errors: { ...(!validated.success ? validated.errors : {}), ...errors },
+  }
+  return { success: true as const, project: validated.project, file, keepPreview: previewMode === 'keep' }
+}
+
 export function deriveGithubRepo(value: string | null): string | null {
   if (!value) return null
   try {

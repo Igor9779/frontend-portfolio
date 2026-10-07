@@ -13,7 +13,7 @@ export interface ProjectFormValues {
   visible: boolean
 }
 
-export type ProjectFieldErrors = Partial<Record<keyof ProjectFormValues, string>>
+export type ProjectFieldErrors = Partial<Record<keyof ProjectFormValues | 'previewFile', string>>
 export type ProjectSaveResult =
   | { success: true; project: AdminProject }
   | { success: false; message: string; errors?: ProjectFieldErrors }

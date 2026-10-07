@@ -234,6 +234,9 @@ src/
   lib/
     projects.ts     Server-only query and database-to-UI mapping
     project-validation.ts  Allowed fields, bounds, URLs and repository mapping
+    preview-file.ts  Shared size/type/signature validation
+    preview-path.ts  Strict managed preview URL recognition
+    project-previews.ts  Authorized server uploads and compensating cleanup
     auth.ts         Verified identity and admin_users authorization
     supabase/public.ts  Anonymous portfolio client, independent of sessions
     supabase/server.ts  Per-request, cookie-based authenticated SSR client
@@ -249,8 +252,12 @@ supabase/
   grant-admin-users-read.sql  Authenticated SELECT-only membership grant repair
   grant-admin-project-writes.sql  Administrator write policies and table grants
   verify-admin-project-writes.sql  Rollback-only database authorization checks
+  setup-project-preview-storage.sql  Public preview bucket and admin policies
+  verify-project-preview-storage.sql  Read-only Stage 7 policy/checkpoint checks
+  verify-project-preview-cleanup.sql  Read-only final Stage 7 cleanup check
 tests/
-  projects.test.mjs  Isolated validation/action tests; no credentials or database
+  projects.test.mjs  Isolated validation/action/Storage tests; no production access
+  fixtures/         Small JPEG, PNG and WebP validation fixtures
 public/
   assets/           Original portfolio preview images
   projects/         Five unchanged standalone multi-page demos
@@ -284,7 +291,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-Image uploads/Storage, persistent ordering, public CMS Demo Mode, AI, GitHub imports and screenshot generation remain future work. Database access stays server-side; there is no browser Supabase client, mutation API route or service-role key.
+Persistent ordering, public CMS Demo Mode, AI, GitHub imports and screenshot generation remain future work. Database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key.
 
 ## CMS Interface
 
@@ -297,6 +304,7 @@ The interface includes:
 - Immediate local search by title, category and technology, with a no-results state.
 - Compact rows with previews, published/hidden status, positions, technologies and available project links.
 - A shared Add/Edit dialog with project fields, technology chips and visibility. Save persists validated changes; closing or cancelling discards the draft. Failed saves retain entered values and display field or generic errors.
+- Optional preview selection/replacement with a local image preview and filename. Upload starts only on Save; cancelling creates no Storage object. An existing URL/local asset remains available as a secondary option.
 - Explicit delete confirmation with a pending state, error feedback and focus restoration after deletion.
 - Local Move Up/Down previews, an explicit preview notice and Reset order. Refreshing restores database order. Clear search before reordering so moves always correspond to the complete list.
 - Native modal dialogs with focus containment, Escape/backdrop dismissal, focus restoration and scrollable forms on smaller viewports. Dismissal and duplicate submission are disabled while a mutation is pending.
@@ -319,9 +327,27 @@ Validation uses a small TypeScript allowlist without additional dependencies. Re
 
 Creation generates a server UUID, sets `source = 'manual'`, derives `github_repo` from normal GitHub repository URLs, supplies server timestamps and appends at the highest stored position plus one (zero for an empty table). Editing uses explicit allowed columns and preserves ID, source, creation time and stored position. Delete targets one validated UUID and requires confirmation. Missing rows are reported as unavailable rather than successful mutations.
 
-Concurrent additions may share a position; UUID secondary ordering remains deterministic. Ordering persistence and concurrency controls can be added in their later stage. Previews remain URL/path fields; image upload must preserve the same authorization, validation and RLS boundaries when implemented.
+Concurrent additions may share a position; UUID secondary ordering remains deterministic. Ordering persistence can be added in its later stage. Preview references remain in the existing `preview_url` text column; Stage 7 adds uploads while preserving local and external URLs.
 
 Live verification created only a hidden `CMS CRUD Test`, verified that it persisted in `/admin` while remaining absent from `/`, edited it, and deleted it. The authenticated dashboard returned to exactly ten projects, and every original row—including IDs, content, positions, visibility and timestamps—matched the pre-test snapshot. Live logged-out direct action calls were denied. Controlled authenticated non-member sessions also verified direct denial by all three actual Server Actions, with identity/membership rechecked and no project query executed. `supabase/verify-admin-project-writes.sql` independently verified administrator CRUD, anonymous denial, non-administrator RLS denial and hidden-row access inside a rollback-only transaction, ending with ten original projects and zero test rows. It can be rerun intentionally in the SQL Editor after cleanup; never commit that verification transaction.
+
+## Project Preview Storage (Stage 7)
+
+Project previews can be uploaded or replaced through the existing authenticated Add/Edit Server Actions. The `project-previews` bucket is public for image reads, with a maximum of 5 MB (5,242,880 bytes) and JPEG, PNG or WebP MIME types. SVG, GIF, HTML and other formats are rejected. Client checks provide immediate feedback; server checks independently enforce non-empty files, size, matching MIME/extension and file signatures. Next.js allows a 6 MB Server Action body to accommodate the image and multipart form fields.
+
+`supabase/setup-project-preview-storage.sql` has been applied manually. Storage RLS remains enabled. Its three bucket-specific policies authorize `authenticated` users only when their UUID exists in `public.admin_users`: `cms_previews_admin_select` supports metadata access needed by deletion, `cms_previews_admin_insert` allows generated preview paths, and `cms_previews_admin_delete` allows their removal. Replacements create a new object; no UPDATE/upsert policy is added. Supabase's existing Storage privileges are retained, without new Storage GRANT statements or a service-role key. See [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control).
+
+Upload and removal helpers each call `requireAdmin()` independently and use the administrator's cookie-based Supabase client. FormData is parsed through an explicit field allowlist. The server chooses `projects/<project UUID>/preview-<file UUID>.<extension>` and saves the full public Storage URL in `projects.preview_url`. Unique paths prevent overwrite collisions and stale replacement caches. Hidden projects stay out of the public portfolio, although their uploaded preview URLs are public bucket files.
+
+Creation uploads before inserting the project. If the database save fails, the new object is removed when it is safe to do so. Replacement uploads to a new path, updates the row, then removes the old managed object. A failed update cleans the new upload and preserves the old image. Editing compares the current preview reference before saving to avoid overwriting a concurrent replacement. Cleanup checks for surviving database references, including an interrupted response after a committed save.
+
+Deletion removes the database row first, then its managed preview through the Storage API. Cleanup failures produce a sanitized server warning and preserve the successful database change. There is no background orphan sweeper. Recognition requires the exact configured public Storage URL, bucket, project UUID and generated filename; local `/assets/...` files, external previews and another project's paths are never deleted. All original previews and files under `public/` remain unchanged. Previews continue using ordinary responsive `<img>` elements.
+
+Live verification used only a hidden `CMS Storage Test`: uploaded a PNG, verified administrator and anonymous image rendering, replaced it with WebP, verified persistence and old-object removal, then deleted the project and replacement through the authenticated application flow. Exactly ten original rows remain, including unchanged timestamps, with zero test rows and zero objects in the new preview bucket. Anonymous Storage API upload/replacement was denied and deletion affected no files. Direct actions reject logged-out callers and controlled authenticated non-members. The read-only SQL checkpoint verified installed role restrictions, non-admin/admin membership predicates, metadata SELECT access and replacement cleanup; it does not simulate Storage API requests or mutate Storage metadata.
+
+The Stage 7 checkpoint SQL expects eleven rows and one replacement object while that temporary test is paused. The final cleanup SQL expects ten original rows and an empty preview bucket after deletion. These are migration verification files, not general maintenance scripts. Storage metadata is read-only in these checks; actual uploads and deletions use the API, following [Supabase's Storage schema guidance](https://supabase.com/docs/guides/storage/schema/design).
+
+All 35 automated tests run without production Storage and cover formats/signatures, size limits, path safety, independent authorization, compensating cleanup, failed replacements, shared references and local asset preservation. Browser checks cover 320px–1440px layouts, dialog focus/Escape behavior, authenticated refresh/logout, unchanged public projects/static demos, and zero console errors or direct browser Supabase mutations. Future persistent sorting should change positions without changing project IDs or preview paths.
 
 ## Administrator Authentication (Stage 5)
 

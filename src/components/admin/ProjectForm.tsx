@@ -9,6 +9,7 @@ import { projectLimits } from '../../lib/project-validation'
 import { Dialog } from './Dialog'
 import { Icon } from './Icon'
 import { TechnologyInput } from './TechnologyInput'
+import { PreviewImageInput } from './PreviewImageInput'
 
 const inputClass = 'w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400'
 
@@ -20,6 +21,8 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
 }) {
   const id = useId()
   const submitting = useRef(false)
+  const [previewReady, setPreviewReady] = useState(true)
+  const [previewMode, setPreviewMode] = useState<'keep' | 'url'>('keep')
   const [values, setValues] = useState<ProjectFormValues>({
     title: initialProject?.title ?? '',
     category: initialProject?.category ?? '',
@@ -34,16 +37,13 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
   })
   const [result, save, pending] = useActionState<ProjectSaveResult | null, FormData>(async (_previous, formData) => {
     try {
-      const input = {
-        title: formData.get('title'), category: formData.get('category'),
-        shortDescription: formData.get('shortDescription'), description: formData.get('description'),
-        previewUrl: formData.get('previewUrl'), githubUrl: formData.get('githubUrl'),
-        productionUrl: formData.get('productionUrl'), telegramUrl: formData.get('telegramUrl'),
-        technologies: formData.getAll('technologies'), visible: formData.has('visible'),
-      }
+      // Omit the native unselected-file placeholder before React serializes
+      // FormData; its empty filename may otherwise become "undefined".
+      const file = formData.get('previewFile')
+      if (file instanceof File && file.size === 0 && file.name === '') formData.delete('previewFile')
       const response = mode === 'edit'
-        ? await updateProject(initialProject?.id, input)
-        : await createProject(input)
+        ? await updateProject(initialProject?.id, formData)
+        : await createProject(formData)
       if (response.success) onSaved(response.project)
       return response
     } catch (error) {
@@ -61,7 +61,6 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
     return errors?.[name] ? <p id={`${id}-${name}-error`} className="mt-2 text-xs text-red-700">{errors[name]}</p> : null
   }
   const links = [
-    { name: 'previewUrl', label: 'Preview URL', type: 'text', placeholder: '/assets/project-preview.png' },
     { name: 'productionUrl', label: 'Production URL', type: 'text', placeholder: 'https:// or /projects/…' },
     { name: 'githubUrl', label: 'GitHub URL', type: 'url', placeholder: 'https://github.com/owner/repository' },
     { name: 'telegramUrl', label: 'Telegram URL', type: 'url', placeholder: 'https://t.me/…' },
@@ -70,9 +69,10 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
   return (
     <Dialog onClose={onClose} busy={pending} titleId={`${id}-title`} descriptionId={`${id}-description`}>
       <form action={save} onSubmit={(event) => {
-        if (submitting.current) event.preventDefault()
+        if (submitting.current || !previewReady) event.preventDefault()
         else submitting.current = true
       }} onReset={(event) => event.preventDefault()} aria-busy={pending} className="flex max-h-[calc(100dvh-32px)] flex-col">
+        <input type="hidden" name="previewMode" value={previewMode} />
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
           <div>
             <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">{mode === 'edit' ? 'Edit project' : 'Add project'}</h2>
@@ -103,6 +103,9 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
               <textarea id={`${id}-full`} name="description" required rows={3} maxLength={projectLimits.description} value={values.description} onChange={(event) => field('description', event.target.value)} aria-invalid={Boolean(errors?.description)} aria-describedby={errors?.description ? `${id}-description-error` : undefined} placeholder="What does the project do?" className={`${inputClass} resize-y`} />
               {feedback('description')}
             </div>
+            <div className="sm:col-span-2">
+              <PreviewImageInput currentPreview={initialProject?.previewUrl ?? null} sourceUrl={values.previewUrl} onSourceChange={(value) => { field('previewUrl', value); setPreviewMode('url') }} onValidityChange={setPreviewReady} fileError={errors?.previewFile} urlError={errors?.previewUrl} />
+            </div>
             {links.map((field) => (
               <div key={field.name} className="min-w-0">
                 <label htmlFor={`${id}-${field.name}`} className="mb-2 block text-xs font-medium text-zinc-700">{field.label} <span className="font-normal text-zinc-500">optional</span></label>
@@ -129,7 +132,7 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose} disabled={pending} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Cancel</button>
-            <button type="submit" disabled={pending} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
+            <button type="submit" disabled={pending || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
           </div>
         </div>
       </form>
