@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useId, useReducer, useRef, useState, useTransition } from 'react'
 import { unstable_rethrow, useRouter } from 'next/navigation'
 import { reorderProjects } from '../../app/admin/order-actions'
@@ -13,6 +15,7 @@ import { ProjectForm } from './ProjectForm'
 type Editor = { mode: 'add' } | { mode: 'edit'; project: AdminProject }
 
 export function AdminProjects({ initialProjects }: { initialProjects: AdminProject[] }) {
+  const { t, countProjects } = useLocale()
   const router = useRouter()
   const searchId = useId()
   const list = useRef<HTMLUListElement>(null)
@@ -132,45 +135,45 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
     <section aria-labelledby="admin-projects-heading" className="mx-auto max-w-[1160px]">
       <div className="mb-7 flex flex-wrap items-start justify-between gap-5">
         <div>
-          <h1 id="admin-projects-heading" className="text-[28px] leading-tight font-semibold tracking-[-0.03em]">Projects</h1>
-          <p className="mt-2 text-sm text-zinc-500">Manage projects displayed in your portfolio.</p>
+          <h1 id="admin-projects-heading" className="text-[28px] leading-tight font-semibold tracking-[-0.03em]">{t("Projects")}</h1>
+          <p className="mt-2 text-sm text-zinc-500">{t("Manage projects displayed in your portfolio.")}</p>
         </div>
-        <button ref={addButton} type="button" disabled={controls.crudDisabled} title={controls.crudDisabled ? 'Save or Reset the current order first' : undefined} onClick={() => { if (!controls.crudDisabled) setEditor({ mode: 'add' }) }} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="plus" />Add project</button>
+        <button ref={addButton} type="button" disabled={controls.crudDisabled} title={controls.crudDisabled ? t("Save or Reset the current order first") : undefined} onClick={() => { if (!controls.crudDisabled) setEditor({ mode: 'add' }) }} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"><Icon name="plus" />{t("Add project")}</button>
       </div>
 
       <div className="mb-6 flex items-start gap-3 rounded-md border border-zinc-200 bg-white px-4 py-3 text-xs leading-5 text-zinc-500">
         <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-        <p><span className="font-medium text-zinc-700">Administrator workspace.</span> Manage portfolio projects. Drag or use Move Up/Down, then Save order to publish the new order.</p>
+        <p><span className="font-medium text-zinc-700">{t("Administrator workspace.")}</span>{' '}{t("Manage portfolio projects. Drag or use Move Up/Down, then Save order to publish the new order.")}</p>
       </div>
-      {mutationNotice && <p role="status" className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">{mutationNotice}</p>}
+      {mutationNotice && <p role="status" className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">{t(mutationNotice)}</p>}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-[360px]">
-          <label htmlFor={searchId} className="sr-only">Search projects</label>
+          <label htmlFor={searchId} className="sr-only">{t("Search projects")}</label>
           <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-400"><Icon name="search" /></span>
-          <input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects…" aria-describedby={`${searchId}-hint`} className="w-full rounded-md border border-zinc-200 bg-white py-2.5 pr-3 pl-10 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/10" />
+          <input id={searchId} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search projects…")} aria-describedby={`${searchId}-hint`} className="w-full rounded-md border border-zinc-200 bg-white py-2.5 pr-3 pl-10 text-xs outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/10" />
         </div>
-        <p role="status" className="text-xs text-zinc-500">{normalizedQuery ? `${matchingProjects.length} of ${projects.length}` : projects.length} {projects.length === 1 ? 'project' : 'projects'}</p>
+        <p role="status" className="text-xs text-zinc-500">{countProjects(normalizedQuery ? matchingProjects.length : projects.length, normalizedQuery ? projects.length : undefined)}</p>
       </div>
-      <p id={`${searchId}-hint`} className={normalizedQuery ? 'mb-4 text-[11px] text-zinc-500' : 'sr-only'}>{normalizedQuery ? 'Clear search to reorder projects.' : 'Search by title, category or technology.'}</p>
+      <p id={`${searchId}-hint`} className={normalizedQuery ? 'mb-4 text-[11px] text-zinc-500' : 'sr-only'}>{normalizedQuery ? t("Clear search to reorder projects.") : t("Search by title, category or technology.")}</p>
 
       <div aria-busy={pending} className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-xs ${controls.dirty ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-zinc-200 bg-white text-zinc-500'}`}>
         <div className="min-w-0 flex-1 basis-[200px]">
-          <p className="font-medium">{pending ? 'Saving project order…' : controls.dirty ? 'Unsaved order changes' : 'Project order is saved'}</p>
-          <p className="mt-1 text-[11px] leading-5">{controls.dirty ? 'Save or Reset the current order before adding, editing or deleting projects.' : 'Changes stay in this draft until you select Save order.'}</p>
+          <p className="font-medium">{pending ? t("Saving project order…") : controls.dirty ? t("Unsaved order changes") : t("Project order is saved")}</p>
+          <p className="mt-1 text-[11px] leading-5">{controls.dirty ? t("Save or Reset the current order before adding, editing or deleting projects.") : t("Changes stay in this draft until you select Save order.")}</p>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <button type="button" disabled={controls.resetDisabled} onClick={resetOrder} className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 font-medium text-zinc-700 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">Reset order</button>
-          <button type="button" disabled={controls.saveDisabled} onClick={saveOrder} className="min-h-9 rounded-md bg-zinc-900 px-3 font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">{pending ? 'Saving…' : 'Save order'}</button>
+        <div className="flex max-w-full shrink-0 flex-wrap gap-2">
+          <button type="button" disabled={controls.resetDisabled} onClick={resetOrder} className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 font-medium text-zinc-700 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">{t("Reset order")}</button>
+          <button type="button" disabled={controls.saveDisabled} onClick={saveOrder} className="min-h-9 rounded-md bg-zinc-900 px-3 font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40">{pending ? t("Saving…") : t("Save order")}</button>
         </div>
       </div>
-      {controls.stale && <p role="status" className="mb-4 text-xs leading-5 text-amber-800">The saved project list or order changed. Reset to the latest saved order before continuing.</p>}
-      {orderError && <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">{orderError}</p>}
-      <p id="project-order-instructions" className="sr-only">Drag by the handle, or use Arrow Up and Arrow Down on the handle or the Move Up/Down buttons. Select Save order to persist changes. Escape cancels a drag.</p>
-      <p role="status" className="sr-only">{orderNotice}</p>
+      {controls.stale && <p role="status" className="mb-4 text-xs leading-5 text-amber-800">{t("The saved project list or order changed. Reset to the latest saved order before continuing.")}</p>}
+      {orderError && <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">{t(orderError)}</p>}
+      <p id="project-order-instructions" className="sr-only">{t("Drag by the handle, or use Arrow Up and Arrow Down on the handle or the Move Up/Down buttons. Select Save order to persist changes. Escape cancels a drag.")}</p>
+      <p role="status" className="sr-only">{t(orderNotice)}</p>
 
       {matchingProjects.length > 0 ? (
-        <ul ref={list} aria-label="Portfolio projects" className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+        <ul ref={list} aria-label={t("Portfolio projects")} className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
           {matchingProjects.map((project) => (
             <AdminProjectCard key={project.id} project={project} canMoveUp={project.id !== projects[0]?.id} canMoveDown={project.id !== projects.at(-1)?.id}
               reorderDisabled={controls.reorderDisabled || Boolean(editor || deleting)} crudDisabled={controls.crudDisabled}
@@ -184,12 +187,12 @@ export function AdminProjects({ initialProjects }: { initialProjects: AdminProje
       ) : (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-16 text-center">
           <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-400"><Icon name="search" className="h-5 w-5" /></div>
-          <h2 className="text-sm font-medium">{normalizedQuery ? 'No projects match your search.' : 'No projects available yet.'}</h2>
-          <p className="mt-2 text-xs text-zinc-500">{normalizedQuery ? 'Try a different title, category or technology.' : 'Projects will appear here when they are available to this workspace.'}</p>
-          {normalizedQuery && <button type="button" onClick={() => setQuery('')} className="mt-4 min-h-9 rounded-md border border-zinc-200 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-zinc-900">Clear search</button>}
+          <h2 className="text-sm font-medium">{normalizedQuery ? t("No projects match your search.") : t("No projects available yet.")}</h2>
+          <p className="mt-2 text-xs text-zinc-500">{normalizedQuery ? t("Try a different title, category or technology.") : t("Projects will appear here when they are available to this workspace.")}</p>
+          {normalizedQuery && <button type="button" onClick={() => setQuery('')} className="mt-4 min-h-9 rounded-md border border-zinc-200 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-zinc-900">{t("Clear search")}</button>}
         </div>
       )}
-      <p className="mt-5 text-[11px] leading-5 text-zinc-500">Showing published and hidden projects available to your administrator account.</p>
+      <p className="mt-5 text-[11px] leading-5 text-zinc-500">{t("Showing published and hidden projects available to your administrator account.")}</p>
 
       {editor && <ProjectForm key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} onClose={() => setEditor(null)} onSaved={saved} />}
       {deleting && <DeleteProjectDialog project={deleting} onClose={() => setDeleting(null)} onDeleted={deleted} />}

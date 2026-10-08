@@ -1,9 +1,11 @@
+import { localeFixture, textFixture } from './locale-fixture.mjs'
 import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 
 export const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8')
 export const moduleUrl = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
 export function compile(path, replacements = {}) {
+  replacements = { '../../lib/use-locale': localeFixture, '../lib/use-locale': localeFixture, '../../../components/LanguageSwitcher': textFixture, '../LanguageSwitcher': textFixture, ...replacements }
   return moduleUrl(ts.transpileModule(source(path), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
     transformers: { before: [context => file => ts.visitNode(file, function visit(node) {

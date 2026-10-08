@@ -1,11 +1,14 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useRef, useState } from 'react'
 import type { ProjectPreviewToolsProps } from '../../types/project-form'
 import { validatePreviewFile } from '../../lib/preview-file'
 import { requestScreenshot, screenshotEligibility } from './screenshot-client'
 
 export function ProjectScreenshot({ disabled, productionUrl, autoCapture, previewRevision, onAccept, onPendingChange }: ProjectPreviewToolsProps) {
+  const { t } = useLocale()
   const [pending, setPending] = useState(false)
   const [feedback, setFeedback] = useState('')
   const mounted = useRef(true)
@@ -77,9 +80,9 @@ export function ProjectScreenshot({ disabled, productionUrl, autoCapture, previe
   return <div className="mt-4 border-t border-zinc-100 pt-3">
     <button type="button" disabled={disabled || pending || !productionUrl.trim()} onClick={() => { void capture(productionUrl) }}
       className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50">
-      {pending ? 'Capturing…' : 'Retake Screenshot'}
+      {pending ? t("Capturing…") : t("Retake Screenshot")}
     </button>
-    <p className="mt-2 text-[11px] leading-5 text-zinc-500">Uses the current Production URL. Supported HTTPS hosting only; nothing uploads until Save.</p>
-    <p role="status" aria-live="polite" className={feedback ? 'mt-2 text-xs leading-5 text-zinc-600' : 'sr-only'}>{feedback}</p>
+    <p className="mt-2 text-[11px] leading-5 text-zinc-500">{t("Uses the current Production URL. Supported HTTPS hosting only; nothing uploads until Save.")}</p>
+    <p role="status" aria-live="polite" className={feedback ? 'mt-2 text-xs leading-5 text-zinc-600' : 'sr-only'}>{t(feedback)}</p>
   </div>
 }

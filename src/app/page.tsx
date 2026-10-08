@@ -12,7 +12,7 @@ export default async function HomePage() {
   return (
     <>
       <Hero />
-      <main className="mx-auto w-[calc(100%-40px)] max-w-[1080px] small-mobile:w-[calc(100%-28px)]">
+      <main id="main-content" className="mx-auto w-[calc(100%-40px)] max-w-[1080px] small-mobile:w-[calc(100%-28px)]">
         <CmsDemoPromo />
         <Projects projects={projects} />
       </main>

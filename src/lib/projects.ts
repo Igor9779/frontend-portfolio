@@ -52,6 +52,7 @@ function toProject(row: ProjectRow): Project {
   if (row.telegram_url) links.push({ label: 'Telegram →', href: row.telegram_url })
 
   return {
+    id: row.id,
     title: row.title,
     type: row.category,
     description: row.description,
@@ -89,13 +90,6 @@ async function readProjectRows(client: SupabaseClient<Database>, { visibleOnly }
 export async function getProjects(): Promise<Project[]> {
   const rows = await readProjectRows(supabase, { visibleOnly: true })
   return rows.map(toProject)
-}
-
-// Public demo snapshot: anonymous client, visible rows, presentation fields only.
-// Never reuse the administrator query or request cookies for this route.
-export async function getDemoProjects(): Promise<AdminProject[]> {
-  const rows = await readProjectRows(supabase, { visibleOnly: true })
-  return rows.map(toAdminProject)
 }
 
 // Verified administrators read visible and hidden rows using their own session.

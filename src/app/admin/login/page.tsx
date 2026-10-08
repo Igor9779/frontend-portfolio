@@ -1,3 +1,4 @@
+import { LanguageSwitcher, LocalizedText } from '../../../components/LanguageSwitcher'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '../../../components/admin/LoginForm'
@@ -20,20 +21,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       : null
 
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-[#f8f9fa] px-5 py-12 text-zinc-900">
+    <main id="main-content" className="flex min-h-dvh flex-col items-center justify-center bg-[#f8f9fa] px-5 py-12 text-zinc-900">
       <div className="w-full max-w-[400px]">
+        <div className="mb-6 flex justify-end"><LanguageSwitcher /></div>
         <div className="mb-7 flex items-center gap-3">
           <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900 text-sm font-semibold text-white">P</span>
           <span className="text-sm font-semibold tracking-tight">Portfolio CMS</span>
-          <span className="rounded border border-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-500">Admin</span>
+          <span className="rounded border border-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-500"><LocalizedText>Admin</LocalizedText></span>
         </div>
         <section aria-labelledby="login-heading" className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <Icon name="lock" className="mb-4 h-5 w-5 text-zinc-400" />
-          <h1 id="login-heading" className="text-xl font-semibold tracking-tight">Administrator sign in</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Sign in to access your portfolio workspace.</p>
+          <h1 id="login-heading" className="text-xl font-semibold tracking-tight"><LocalizedText>Administrator sign in</LocalizedText></h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-500"><LocalizedText>Sign in to access your portfolio workspace.</LocalizedText></p>
           <LoginForm initialError={initialError} clearAdminDraft={access.status === 'anonymous'} />
         </section>
-        <a href="/" className="mt-6 inline-flex min-h-10 items-center rounded-md text-xs font-medium text-zinc-500 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900">← Back to portfolio</a>
+        <a href="/" className="mt-6 inline-flex min-h-10 items-center rounded-md text-xs font-medium text-zinc-500 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"><LocalizedText>← Back to portfolio</LocalizedText></a>
       </div>
     </main>
   )

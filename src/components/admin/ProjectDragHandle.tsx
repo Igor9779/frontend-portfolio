@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useRef, type PointerEvent } from 'react'
 import { Icon } from './Icon'
 
@@ -11,6 +13,7 @@ export function ProjectDragHandle({ id, title, disabled, onDrop, onMove, onDragC
   onMove: (direction: -1 | 1) => void
   onDragChange: (targetId: string | null, active: boolean) => void
 }) {
+  const { t } = useLocale()
   const drag = useRef<{ x: number; y: number; active: boolean; target: string | null } | null>(null)
 
   function cancel() {
@@ -35,9 +38,9 @@ export function ProjectDragHandle({ id, title, disabled, onDrop, onMove, onDragC
 
   return (
     <button type="button" data-drag-handle={id} disabled={disabled}
-      aria-label={`Drag to reorder ${title}`} aria-describedby="project-order-instructions"
-      title="Drag to reorder · Arrow Up/Down also move this project"
-      className="inline-flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 select-none enabled:cursor-grab enabled:hover:bg-zinc-50 enabled:active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-30"
+      aria-label={t("Drag to reorder {0}", [title])} aria-describedby="project-order-instructions"
+      title={t("Drag to reorder · Arrow Up/Down also move this project")}
+      className="inline-flex h-10 w-10 shrink-0 touch-none items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 select-none enabled:cursor-grab enabled:hover:bg-zinc-50 enabled:active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-30"
       onPointerDown={(event) => {
         if (disabled || event.button !== 0) return
         event.currentTarget.focus()

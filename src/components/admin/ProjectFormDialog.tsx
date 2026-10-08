@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useActionState, useEffect, useId, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { unstable_rethrow } from 'next/navigation'
@@ -33,6 +35,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
     onApplySuggestions: (suggestions: AiProjectSuggestions, expectedRepository: string) => boolean;
     onPendingChange: (pending: boolean) => void }>
 }) {
+  const { t } = useLocale()
   const id = useId()
   const submitting = useRef(false)
   const [previewReady, setPreviewReady] = useState(true)
@@ -89,7 +92,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
     changeDraft({ ...draft, values: { ...values, [name]: value } })
   }
   function feedback(name: keyof ProjectFormValues) {
-    return errors?.[name] ? <p id={`${id}-${name}-error`} className="mt-2 text-xs text-red-700">{errors[name]}</p> : null
+    return errors?.[name] ? <p id={`${id}-${name}-error`} className="mt-2 text-xs text-red-700">{t(errors[name]!)}</p> : null
   }
   const links = [
     { name: 'productionUrl', label: 'Production URL', type: 'text', placeholder: 'https:// or /projects/…' },
@@ -107,16 +110,16 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
         {importedRepository && <input type="hidden" name="importedGithubRepo" value={importedRepository} />}
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
           <div>
-            <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">{mode === 'edit' ? 'Edit project' : 'Add project'}</h2>
-            <p id={`${id}-description`} className="mt-1 text-xs text-zinc-500">{localOnly ? 'Save changes in this demo only. The live portfolio stays unchanged.' : onDraftChange ? 'Closing keeps your draft in this tab. Preview files must be selected again after reopening.' : 'Save changes to your portfolio. Unsaved changes are discarded when you close.'}</p>
+            <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">{mode === 'edit' ? t("Edit project") : t("Add project")}</h2>
+            <p id={`${id}-description`} className="mt-1 text-xs text-zinc-500">{localOnly ? t("Save changes in this demo only. The live portfolio stays unchanged.") : onDraftChange ? t("Closing keeps your draft in this tab. Preview files must be selected again after reopening.") : t("Save changes to your portfolio. Unsaved changes are discarded when you close.")}</p>
           </div>
-          <button type="button" onClick={onClose} disabled={busy} aria-label="Close project form" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-900 disabled:opacity-40"><Icon name="close" /></button>
+          <button type="button" onClick={onClose} disabled={busy} aria-label={t("Close project form")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-zinc-900 disabled:opacity-40"><Icon name="close" /></button>
         </div>
 
         <div className="min-h-0 overflow-y-auto overscroll-contain px-5 py-6 sm:px-7">
           {onDiscardDraft && <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <p role="status" className="min-w-0 flex-1 text-xs leading-5 text-zinc-500">{draftPersistent ? 'Draft kept in this tab until you save or discard.' : 'Browser storage is unavailable. Keep this form open to retain your draft.'}</p>
-            <button type="button" onClick={onDiscardDraft} disabled={busy} className="min-h-9 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Discard draft</button>
+            <p role="status" className="min-w-0 flex-1 text-xs leading-5 text-zinc-500">{draftPersistent ? t("Draft kept in this tab until you save or discard.") : t("Browser storage is unavailable. Keep this form open to retain your draft.")}</p>
+            <button type="button" onClick={onDiscardDraft} disabled={busy} className="min-h-9 shrink-0 rounded-md border border-zinc-300 px-3 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">{t("Discard draft")}</button>
           </div>}
           {Prefill && <Prefill disabled={busy} repositoryUrl={values.githubUrl} onPendingChange={setPrefillPending}
             onApply={({ githubRepository, ...fields }) => {
@@ -137,23 +140,23 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
             }} />}
           <fieldset disabled={busy} className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
-              <label htmlFor={`${id}-name`} className="mb-2 block text-xs font-medium text-zinc-700">Title <span aria-hidden="true">*</span></label>
-              <input id={`${id}-name`} name="title" required maxLength={projectLimits.title} data-dialog-focus value={values.title} onChange={(event) => field('title', event.target.value)} aria-invalid={Boolean(errors?.title)} aria-describedby={errors?.title ? `${id}-title-error` : undefined} placeholder="Project name" className={inputClass} />
+              <label htmlFor={`${id}-name`} className="mb-2 block text-xs font-medium text-zinc-700">{t("Title")}{' '}<span aria-hidden="true">*</span></label>
+              <input id={`${id}-name`} name="title" required maxLength={projectLimits.title} data-dialog-focus value={values.title} onChange={(event) => field('title', event.target.value)} aria-invalid={Boolean(errors?.title)} aria-describedby={errors?.title ? `${id}-title-error` : undefined} placeholder={t("Project name")} className={inputClass} />
               {feedback('title')}
             </div>
             <div>
-              <label htmlFor={`${id}-category`} className="mb-2 block text-xs font-medium text-zinc-700">Category <span aria-hidden="true">*</span></label>
-              <input id={`${id}-category`} name="category" required maxLength={projectLimits.category} value={values.category} onChange={(event) => field('category', event.target.value)} aria-invalid={Boolean(errors?.category)} aria-describedby={errors?.category ? `${id}-category-error` : undefined} placeholder="e.g. Developer tools" className={inputClass} />
+              <label htmlFor={`${id}-category`} className="mb-2 block text-xs font-medium text-zinc-700">{t("Category")}{' '}<span aria-hidden="true">*</span></label>
+              <input id={`${id}-category`} name="category" required maxLength={projectLimits.category} value={values.category} onChange={(event) => field('category', event.target.value)} aria-invalid={Boolean(errors?.category)} aria-describedby={errors?.category ? `${id}-category-error` : undefined} placeholder={t("e.g. Developer tools")} className={inputClass} />
               {feedback('category')}
             </div>
             <div className="sm:col-span-2">
-              <label htmlFor={`${id}-short`} className="mb-2 block text-xs font-medium text-zinc-700">Short description <span className="font-normal text-zinc-500">optional</span></label>
-              <textarea id={`${id}-short`} name="shortDescription" rows={2} maxLength={projectLimits.shortDescription} value={values.shortDescription} onChange={(event) => field('shortDescription', event.target.value)} aria-invalid={Boolean(errors?.shortDescription)} aria-describedby={errors?.shortDescription ? `${id}-shortDescription-error` : undefined} placeholder="A brief overview of the project" className={`${inputClass} resize-y`} />
+              <label htmlFor={`${id}-short`} className="mb-2 block text-xs font-medium text-zinc-700">{t("Short description")}{' '}<span className="font-normal text-zinc-500">{t("optional")}</span></label>
+              <textarea id={`${id}-short`} name="shortDescription" rows={2} maxLength={projectLimits.shortDescription} value={values.shortDescription} onChange={(event) => field('shortDescription', event.target.value)} aria-invalid={Boolean(errors?.shortDescription)} aria-describedby={errors?.shortDescription ? `${id}-shortDescription-error` : undefined} placeholder={t("A brief overview of the project")} className={`${inputClass} resize-y`} />
               {feedback('shortDescription')}
             </div>
             <div className="sm:col-span-2">
-              <label htmlFor={`${id}-full`} className="mb-2 block text-xs font-medium text-zinc-700">Description <span aria-hidden="true">*</span></label>
-              <textarea id={`${id}-full`} name="description" required rows={3} maxLength={projectLimits.description} value={values.description} onChange={(event) => field('description', event.target.value)} aria-invalid={Boolean(errors?.description)} aria-describedby={errors?.description ? `${id}-description-error` : undefined} placeholder="What does the project do?" className={`${inputClass} resize-y`} />
+              <label htmlFor={`${id}-full`} className="mb-2 block text-xs font-medium text-zinc-700">{t("Description")}{' '}<span aria-hidden="true">*</span></label>
+              <textarea id={`${id}-full`} name="description" required rows={3} maxLength={projectLimits.description} value={values.description} onChange={(event) => field('description', event.target.value)} aria-invalid={Boolean(errors?.description)} aria-describedby={errors?.description ? `${id}-description-error` : undefined} placeholder={t("What does the project do?")} className={`${inputClass} resize-y`} />
               {feedback('description')}
             </div>
             <div className="sm:col-span-2">
@@ -172,10 +175,10 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
             </div>
             {links.map((field) => (
               <div key={field.name} className="min-w-0">
-                <label htmlFor={`${id}-${field.name}`} className="mb-2 block text-xs font-medium text-zinc-700">{field.label} <span className="font-normal text-zinc-500">optional</span></label>
+                <label htmlFor={`${id}-${field.name}`} className="mb-2 block text-xs font-medium text-zinc-700">{t(field.label)} <span className="font-normal text-zinc-500">{t("optional")}</span></label>
                 <input id={`${id}-${field.name}`} name={field.name} type={field.type} inputMode="url" maxLength={projectLimits.url} value={values[field.name]} onChange={(event) => {
                   changeDraft({ ...draft, values: { ...values, [field.name]: event.target.value }, importedRepository: field.name === 'githubUrl' ? null : importedRepository })
-                }} aria-invalid={Boolean(errors?.[field.name])} aria-describedby={errors?.[field.name] ? `${id}-${field.name}-error` : undefined} placeholder={field.placeholder} className={inputClass} />
+                }} aria-invalid={Boolean(errors?.[field.name])} aria-describedby={errors?.[field.name] ? `${id}-${field.name}-error` : undefined} placeholder={t(field.placeholder)} className={inputClass} />
                 {feedback(field.name)}
               </div>
             ))}
@@ -185,20 +188,20 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
             </div>
             <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 sm:col-span-2">
               <input type="checkbox" name="visible" checked={values.visible} onChange={(event) => field('visible', event.target.checked)} aria-invalid={Boolean(errors?.visible)} aria-describedby={errors?.visible ? `${id}-visible-error` : undefined} className="mt-0.5 h-4 w-4 shrink-0 accent-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900" />
-              <span><span className="block text-xs font-medium">Visible on portfolio</span><span className="mt-1 block text-[11px] text-zinc-500">{localOnly ? (values.visible ? 'Published · Shown in this demo only' : 'Hidden · Hidden in this demo only') : (values.visible ? 'Published · Appears on the public portfolio after saving' : 'Hidden · Only visible in the CMS after saving')}</span></span>
+              <span><span className="block text-xs font-medium">{t("Visible on portfolio")}</span><span className="mt-1 block text-[11px] text-zinc-500">{localOnly ? (values.visible ? t("Published · Shown in this demo only") : t("Hidden · Hidden in this demo only")) : (values.visible ? t("Published · Appears on the public portfolio after saving") : t("Hidden · Only visible in the CMS after saving"))}</span></span>
             </label>
             {errors?.visible && <div className="sm:col-span-2">{feedback('visible')}</div>}
           </fieldset>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/70 px-5 py-4 sm:px-7">
-          <div className="min-w-0 flex-1">
-            {result?.success === false && <p role="alert" className="text-xs leading-5 text-red-700">{result.message}</p>}
-            <p role="status" className="text-[11px] text-zinc-500">{pending ? 'Saving project…' : 'Project order is managed separately.'}</p>
+          <div className="min-w-0 flex-1 basis-[200px]">
+            {result?.success === false && <p role="alert" className="text-xs leading-5 text-red-700">{t(result.message)}</p>}
+            <p role="status" className="text-[11px] text-zinc-500">{pending ? t("Saving project…") : t("Project order is managed separately.")}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} disabled={busy} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Cancel</button>
-            <button type="submit" disabled={busy || screenshotPending || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
+          <div className="flex max-w-full flex-wrap items-center gap-2">
+            <button type="button" onClick={onClose} disabled={busy} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">{t("Cancel")}</button>
+            <button type="submit" disabled={busy || screenshotPending || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? t("Saving…") : t("Save project")}</button>
           </div>
         </div>
       </form>

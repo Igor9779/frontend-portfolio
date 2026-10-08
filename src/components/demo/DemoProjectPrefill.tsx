@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ProjectFormPrefill } from '../../types/project-form'
 import type { AiProjectSuggestions } from '../../types/ai-autofill'
@@ -16,6 +18,7 @@ export function DemoProjectPrefill({ disabled, repositoryUrl, onApply, onApplySu
   onApplySuggestions: (suggestions: AiProjectSuggestions, expectedRepository: string) => boolean
   onPendingChange: (pending: boolean) => void
 }) {
+  const { t } = useLocale()
   const id = useId()
   const [url, setUrl] = useState('')
   const [pending, setPending] = useState<'import' | 'ai' | null>(null)
@@ -64,26 +67,26 @@ export function DemoProjectPrefill({ disabled, repositoryUrl, onApply, onApplySu
   }
 
   return <>
-    <section aria-label="GitHub import" aria-busy={pending === 'import'} className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 p-4">
-      <p className="mb-3 text-[11px] leading-5 text-zinc-500">GitHub import, previews and AI suggestions are simulated locally.</p>
-      <label htmlFor={`${id}-repository`} className="mb-2 block text-xs font-medium text-zinc-700">GitHub repository</label>
+    <section aria-label={t("GitHub import")} aria-busy={pending === 'import'} className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+      <p className="mb-3 text-[11px] leading-5 text-zinc-500">{t("GitHub import, previews and AI suggestions are simulated locally.")}</p>
+      <label htmlFor={`${id}-repository`} className="mb-2 block text-xs font-medium text-zinc-700">{t("GitHub repository")}</label>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
         <input id={`${id}-repository`} type="url" inputMode="url" autoComplete="off" maxLength={2048} value={url}
           onChange={event => { setUrl(event.target.value); setImportFeedback({ text: '', error: false }) }} disabled={disabled || Boolean(pending)}
           onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void simulate('import') } }}
           aria-invalid={importFeedback.error} aria-describedby={`${id}-import-feedback`} placeholder="https://github.com/owner/repository"
           className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400 disabled:opacity-60" />
-        <button type="button" disabled={disabled || Boolean(pending) || !url.trim()} onClick={() => { void simulate('import') }} className={`${buttonClass} shrink-0`}>{pending === 'import' ? 'Importing…' : 'Import from GitHub'}</button>
+        <button type="button" disabled={disabled || Boolean(pending) || !url.trim()} onClick={() => { void simulate('import') }} className={`${buttonClass} shrink-0`}>{pending === 'import' ? t("Importing…") : t("Import from GitHub")}</button>
       </div>
-      <button type="button" disabled={disabled || Boolean(pending)} onClick={() => { setUrl(museDemoFixture.githubUrl); setImportFeedback({ text: 'MUSE example selected. Click Import from GitHub.', error: false }) }} className="mt-3 min-h-9 rounded px-1 text-xs font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-50">Use MUSE example</button>
-      <p id={`${id}-import-feedback`} role={importFeedback.error ? 'alert' : 'status'} className={`mt-2 text-xs leading-5 ${importFeedback.error ? 'text-red-700' : 'text-zinc-500'}`}>{pending === 'import' ? 'Loading sample repository…' : importFeedback.text}</p>
+      <button type="button" disabled={disabled || Boolean(pending)} onClick={() => { setUrl(museDemoFixture.githubUrl); setImportFeedback({ text: 'MUSE example selected. Click Import from GitHub.', error: false }) }} className="mt-3 min-h-9 rounded px-1 text-xs font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-50">{t("Use MUSE example")}</button>
+      <p id={`${id}-import-feedback`} role={importFeedback.error ? 'alert' : 'status'} className={`mt-2 text-xs leading-5 ${importFeedback.error ? 'text-red-700' : 'text-zinc-500'}`}>{pending === 'import' ? t("Loading sample repository…") : t(importFeedback.text)}</p>
     </section>
-    <section aria-label="Demo AI Auto-fill" aria-busy={pending === 'ai'} className="mb-6 rounded-md border border-zinc-200 p-4">
+    <section aria-label={t("Demo AI Auto-fill")} aria-busy={pending === 'ai'} className="mb-6 rounded-md border border-zinc-200 p-4">
       <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0"><p className="text-xs leading-5 text-zinc-600">AI Auto-fill replaces title, category, descriptions and technologies.</p><p className="mt-1 text-[11px] leading-5 text-zinc-500">Demo AI — simulated locally.</p></div>
-        <button type="button" disabled={disabled || Boolean(pending) || !aiFixture} onClick={() => { void simulate('ai') }} aria-describedby={`${id}-ai-feedback`} className={`${buttonClass} shrink-0`}>{pending === 'ai' ? 'Generating…' : 'Demo AI Auto-fill'}</button>
+        <div className="min-w-0"><p className="text-xs leading-5 text-zinc-600">{t("AI Auto-fill replaces title, category, descriptions and technologies.")}</p><p className="mt-1 text-[11px] leading-5 text-zinc-500">{t("Demo AI — simulated locally.")}</p></div>
+        <button type="button" disabled={disabled || Boolean(pending) || !aiFixture} onClick={() => { void simulate('ai') }} aria-describedby={`${id}-ai-feedback`} className={`${buttonClass} shrink-0`}>{pending === 'ai' ? t("Generating…") : t("Demo AI Auto-fill")}</button>
       </div>
-      <p id={`${id}-ai-feedback`} role={aiFeedback.error ? 'alert' : 'status'} className={`mt-2 text-xs leading-5 ${aiFeedback.error ? 'text-red-700' : 'text-zinc-500'}`}>{pending === 'ai' ? 'Preparing sample suggestions…' : aiFeedback.text || (aiFixture ? 'Optional sample suggestions. Nothing is saved until Save project.' : 'Import the MUSE example to try sample suggestions.')}</p>
+      <p id={`${id}-ai-feedback`} role={aiFeedback.error ? 'alert' : 'status'} className={`mt-2 text-xs leading-5 ${aiFeedback.error ? 'text-red-700' : 'text-zinc-500'}`}>{pending === 'ai' ? t("Preparing sample suggestions…") : (aiFeedback.text ? t(aiFeedback.text) : '') || (aiFixture ? t("Optional sample suggestions. Nothing is saved until Save project.") : t("Import the MUSE example to try sample suggestions."))}</p>
     </section>
   </>
 }

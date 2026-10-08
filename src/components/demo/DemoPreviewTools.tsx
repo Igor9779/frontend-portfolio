@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useRef, useState } from 'react'
 import type { ProjectPreviewToolsProps } from '../../types/project-form'
 import { findDemoPreview } from '../../lib/cms-demo-fixtures'
@@ -7,6 +9,7 @@ import { createDemoPreview } from '../../lib/cms-demo-preview'
 import { DemoSimulation, demoDelays, waitForDemo } from '../../lib/cms-demo-simulation'
 
 export function DemoPreviewTools({ disabled, productionUrl, autoCapture, previewRevision, onAccept, onPendingChange }: ProjectPreviewToolsProps) {
+  const { t } = useLocale()
   const [operation] = useState(() => new DemoSimulation())
   const [pending, setPending] = useState(false)
   const [feedback, setFeedback] = useState('')
@@ -57,8 +60,8 @@ export function DemoPreviewTools({ disabled, productionUrl, autoCapture, preview
   })
 
   return <div className="mt-4 border-t border-zinc-100 pt-3">
-    <button type="button" disabled={disabled || pending || !findDemoPreview(productionUrl)} onClick={() => { void simulate(productionUrl) }} className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Preparing…' : 'Retake sample preview'}</button>
-    <p className="mt-2 text-[11px] leading-5 text-zinc-500">Uses the bundled MUSE sample. Your files stay on this device.</p>
-    <p role="status" aria-live="polite" className={feedback ? 'mt-2 text-xs leading-5 text-zinc-600' : 'sr-only'}>{feedback}</p>
+    <button type="button" disabled={disabled || pending || !findDemoPreview(productionUrl)} onClick={() => { void simulate(productionUrl) }} className="min-h-9 rounded-md border border-zinc-300 bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50">{pending ? t("Preparing…") : t("Retake sample preview")}</button>
+    <p className="mt-2 text-[11px] leading-5 text-zinc-500">{t("Uses the bundled MUSE sample. Your files stay on this device.")}</p>
+    <p role="status" aria-live="polite" className={feedback ? 'mt-2 text-xs leading-5 text-zinc-600' : 'sr-only'}>{t(feedback)}</p>
   </div>
 }

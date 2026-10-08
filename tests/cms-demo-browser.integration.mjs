@@ -6,7 +6,8 @@ import { after, test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { chromium } from 'playwright-core'
 
-const origin = 'http://localhost:3000'
+const origin = process.env.PORTFOLIO_QA_ORIGIN ?? 'http://localhost:3000'
+assert.equal(new URL(origin).hostname, 'localhost')
 const seedTitles = ['AI Radar', 'Deutsch Word App', 'Domens Tools']
 const muse = 'MUSE — AI Creator Showcase'
 const browser = await chromium.launch({
@@ -15,7 +16,7 @@ const browser = await chromium.launch({
 })
 
 after(async () => { await browser.close() })
-for (const width of [320, 375, 768, 1440]) test(`anonymous demo workflow at ${width}px stays local and restores its seed`, async () => {
+for (const width of [320, 375, 768, 1024, 1440]) test(`anonymous demo workflow at ${width}px stays local and restores its seed`, async () => {
     const context = await browser.newContext({ viewport: { width, height: 1000 }, reducedMotion: 'reduce', serviceWorkers: 'block' })
     const forbidden = [], requests = [], errors = []
     await context.route('**/*', route => {

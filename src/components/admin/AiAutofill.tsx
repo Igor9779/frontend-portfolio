@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import { autofillProject } from '../../app/admin/ai-actions'
@@ -14,6 +16,7 @@ export function AiAutofill({ repositoryUrl, disabled, onStart, onPendingChange, 
   onPendingChange: (pending: boolean) => void
   onApply: (suggestions: AiProjectSuggestions, expectedRepository: string) => boolean
 }) {
+  const { t } = useLocale()
   const id = useId()
   const active = useRef(false)
   const mounted = useRef(true)
@@ -46,19 +49,19 @@ export function AiAutofill({ repositoryUrl, disabled, onStart, onPendingChange, 
     })
   }
 
-  return <section aria-label="AI Auto-fill" aria-busy={pending} className="mb-6 rounded-md border border-zinc-200 p-4">
+  return <section aria-label={t("AI Auto-fill")} aria-busy={pending} className="mb-6 rounded-md border border-zinc-200 p-4">
     <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <p id={`${id}-explanation`} className="min-w-0 text-xs leading-5 text-zinc-600">AI Auto-fill replaces title, category, descriptions and technologies.</p>
+      <p id={`${id}-explanation`} className="min-w-0 text-xs leading-5 text-zinc-600">{t("AI Auto-fill replaces title, category, descriptions and technologies.")}</p>
       <button type="button" onClick={autofill} disabled={disabled || pending || !parsed}
         aria-describedby={`${id}-explanation ${id}-feedback`}
         className="min-h-10 shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50">
-        {pending ? 'Generating…' : 'AI Auto-fill'}
+        {pending ? t("Generating…") : t("AI Auto-fill")}
       </button>
     </div>
     <div id={`${id}-feedback`} className="mt-2 text-xs leading-5">
-      {result?.success === false ? <p role="alert" className="text-red-700">{result.message}</p>
-        : <p role="status" className="text-zinc-500">{pending ? 'Analyzing repository evidence…' : result?.success ? 'Suggestions applied. Review and edit before saving.' : parsed ? 'Optional suggestions. Nothing is saved until you save the project.' : 'Import a repository or enter a valid GitHub URL in the form first.'}</p>}
-      {result?.success && result.warnings.map(warning => <p key={warning} className="mt-1 text-zinc-600">{warning}</p>)}
+      {result?.success === false ? <p role="alert" className="text-red-700">{t(result.message)}</p>
+        : <p role="status" className="text-zinc-500">{pending ? t("Analyzing repository evidence…") : result?.success ? t("Suggestions applied. Review and edit before saving.") : parsed ? t("Optional suggestions. Nothing is saved until you save the project.") : t("Import a repository or enter a valid GitHub URL in the form first.")}</p>}
+      {result?.success && result.warnings.map(warning => <p key={warning} className="mt-1 text-zinc-600">{t(warning)}</p>)}
     </div>
   </section>
 }

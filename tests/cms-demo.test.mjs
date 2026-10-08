@@ -1,3 +1,4 @@
+import { localeFixture, textFixture } from './locale-fixture.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve, relative } from 'node:path'
@@ -9,6 +10,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const source = path => readFileSync(resolve(root, path), 'utf8')
 const moduleUrl = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64')
 function compile(path, replacements = {}) {
+  replacements = { '../../lib/use-locale': localeFixture, '../lib/use-locale': localeFixture, '../../../components/LanguageSwitcher': textFixture, '../LanguageSwitcher': textFixture, ...replacements }
   return moduleUrl(ts.transpileModule(source(path), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
     transformers: { before: [context => file => ts.visitNode(file, function visit(node) {

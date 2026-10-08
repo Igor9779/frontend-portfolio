@@ -1,24 +1,27 @@
+'use client'
+
+import { useLocale } from '../lib/use-locale'
+import { LanguageSwitcher } from './LanguageSwitcher'
 export function Hero() {
+  const { t } = useLocale()
   return (
     <header
       className="relative overflow-hidden bg-[#111] bg-hero-grid pt-24 pb-20 text-white [background-size:40px_40px,40px_40px,auto,auto] mobile:pt-[70px] mobile:pb-[60px] mobile:[background-size:30px_30px,30px_30px,auto,auto] after:pointer-events-none after:absolute after:top-[-260px] after:right-[-220px] after:size-[500px] after:rounded-full after:bg-[#508cff]/[0.08] after:blur-[80px] after:content-['']"
     >
+      <div className="absolute inset-x-0 top-4 mx-auto flex w-[calc(100%-40px)] max-w-[1080px] justify-end small-mobile:w-[calc(100%-28px)]">
+        <LanguageSwitcher dark />
+      </div>
       <div className="mx-auto w-[calc(100%-40px)] max-w-[1080px] small-mobile:w-[calc(100%-28px)] before:mb-6 before:block before:h-1 before:w-[60px] before:rounded-full before:bg-[linear-gradient(90deg,#4facfe,#8f6cff)] before:content-['']">
-        <p className="mb-3 text-xs leading-[1.5] font-bold tracking-[0.14em] text-[#aaa]">
-          FRONTEND DEVELOPER
-        </p>
+        <p className="mb-3 text-xs leading-[1.5] font-bold tracking-[0.14em] text-[#aaa]">{t("FRONTEND DEVELOPER")}</p>
 
         <h1 className="mb-[18px] text-[clamp(42px,7vw,76px)] leading-[0.98] font-bold tracking-[-0.04em] mobile:text-[clamp(42px,13vw,64px)]">
           Igor Bondarenko
         </h1>
 
-        <p className="max-w-[650px] text-xl leading-[1.5] text-[#c7c7c7] mobile:text-lg">
-          Frontend developer building web interfaces, internal tools and
-          interactive applications with React, TypeScript and JavaScript.
-        </p>
+        <p className="max-w-[650px] text-xl leading-[1.5] text-[#c7c7c7] mobile:text-lg">{t("Frontend developer building web interfaces, internal tools and interactive applications with React, TypeScript and JavaScript.")}</p>
 
         <nav
-          aria-label="Social links"
+          aria-label={t("Social links")}
           className="mt-8 flex items-center gap-3 mobile:mt-7 small-mobile:flex-col small-mobile:items-start small-mobile:gap-[10px]"
         >
           <a

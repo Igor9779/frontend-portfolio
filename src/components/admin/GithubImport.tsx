@@ -1,5 +1,7 @@
 'use client'
 
+import { useLocale } from '../../lib/use-locale'
+
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import { importGithubRepository } from '../../app/admin/github-actions'
@@ -13,6 +15,7 @@ export function GithubImport({ disabled, onStart, onApply, onPendingChange }: {
   onApply: (fields: ProjectFormPrefill) => void
   onPendingChange: (pending: boolean) => void
 }) {
+  const { t } = useLocale()
   const id = useId()
   const submitting = useRef(false)
   const mounted = useRef(true)
@@ -43,8 +46,8 @@ export function GithubImport({ disabled, onStart, onApply, onPendingChange }: {
   }
 
   return (
-    <section aria-label="GitHub import" aria-busy={pending} className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 p-4">
-      <label htmlFor={`${id}-repository`} className="mb-2 block text-xs font-medium text-zinc-700">GitHub repository</label>
+    <section aria-label={t("GitHub import")} aria-busy={pending} className="mb-6 rounded-md border border-zinc-200 bg-zinc-50 p-4">
+      <label htmlFor={`${id}-repository`} className="mb-2 block text-xs font-medium text-zinc-700">{t("GitHub repository")}</label>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
         <input id={`${id}-repository`} type="url" inputMode="url" autoComplete="off" maxLength={2048} value={url}
           onChange={(event) => { setUrl(event.target.value); setResult(null) }} disabled={disabled || pending}
@@ -54,13 +57,13 @@ export function GithubImport({ disabled, onStart, onApply, onPendingChange }: {
           className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400 disabled:opacity-60" />
         <button type="button" onClick={importRepository} disabled={disabled || pending || !url.trim()}
           className="shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-50">
-          {pending ? 'Importing…' : 'Import from GitHub'}
+          {pending ? t("Importing…") : t("Import from GitHub")}
         </button>
       </div>
       <div id={`${id}-feedback`} className="mt-2 text-xs leading-5">
-        {result?.success === false ? <p role="alert" className="text-red-700">{result.message}</p>
-          : <p role="status" className="text-zinc-500">{pending ? 'Fetching repository details…' : result?.success ? 'Imported. Review the fields and choose a category before saving.' : 'Fill the form from a public repository. Nothing is saved until you save the project.'}</p>}
-        {result?.success && result.warning && <p className="mt-1 text-zinc-700">{result.warning}</p>}
+        {result?.success === false ? <p role="alert" className="text-red-700">{t(result.message)}</p>
+          : <p role="status" className="text-zinc-500">{pending ? t("Fetching repository details…") : result?.success ? t("Imported. Review the fields and choose a category before saving.") : t("Fill the form from a public repository. Nothing is saved until you save the project.")}</p>}
+        {result?.success && result.warning && <p className="mt-1 text-zinc-700">{t(result.warning)}</p>}
       </div>
     </section>
   )
