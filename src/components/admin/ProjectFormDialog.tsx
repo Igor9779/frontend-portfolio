@@ -186,7 +186,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
               <TechnologyInput values={values.technologies} onChange={(value) => field('technologies', value)} error={errors?.technologies} />
               {values.technologies.map((value) => <input key={value} type="hidden" name="technologies" value={value} />)}
             </div>
-            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 sm:col-span-2">
+            <label className="flex items-start gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 sm:col-span-2">
               <input type="checkbox" name="visible" checked={values.visible} onChange={(event) => field('visible', event.target.checked)} aria-invalid={Boolean(errors?.visible)} aria-describedby={errors?.visible ? `${id}-visible-error` : undefined} className="mt-0.5 h-4 w-4 shrink-0 accent-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900" />
               <span><span className="block text-xs font-medium">{t("Visible on portfolio")}</span><span className="mt-1 block text-[11px] text-zinc-500">{localOnly ? (values.visible ? t("Published · Shown in this demo only") : t("Hidden · Hidden in this demo only")) : (values.visible ? t("Published · Appears on the public portfolio after saving") : t("Hidden · Only visible in the CMS after saving"))}</span></span>
             </label>

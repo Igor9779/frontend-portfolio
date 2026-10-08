@@ -44,6 +44,31 @@
     line-height: 1.5;
   }
 
+  /* Base defaults let utilities keep specialized drag and busy cursors. */
+  :where(
+    button,
+    a[href],
+    summary,
+    select,
+    input:is([type="button"], [type="submit"], [type="reset"], [type="checkbox"], [type="radio"], [type="file"]),
+    [role="button"],
+    [role="link"]
+  ):not(:disabled):not([aria-disabled="true"]),
+  :where(label:has(> input:is([type="checkbox"], [type="radio"]):enabled)),
+  :where(label[for]:has(+ input[type="file"]:enabled)) {
+    cursor: pointer;
+  }
+
+  /* :disabled also covers controls inside a disabled fieldset. */
+  :where(button, input, select, textarea):disabled,
+  :where([aria-disabled="true"], label:has(> input:disabled), label[for]:has(+ input[type="file"]:disabled)) {
+    cursor: not-allowed;
+  }
+
+  :where(input[type="file"])::file-selector-button {
+    cursor: inherit;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
