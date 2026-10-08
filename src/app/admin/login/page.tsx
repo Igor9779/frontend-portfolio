@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Icon name="lock" className="mb-4 h-5 w-5 text-zinc-400" />
           <h1 id="login-heading" className="text-xl font-semibold tracking-tight">Administrator sign in</h1>
           <p className="mt-2 text-sm leading-6 text-zinc-500">Sign in to access your portfolio workspace.</p>
-          <LoginForm initialError={initialError} />
+          <LoginForm initialError={initialError} clearAdminDraft={access.status === 'anonymous'} />
         </section>
         <a href="/" className="mt-6 inline-flex min-h-10 items-center rounded-md text-xs font-medium text-zinc-500 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900">← Back to portfolio</a>
       </div>

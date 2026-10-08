@@ -1,11 +1,18 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { signIn } from '../../app/admin/actions'
+import { clearProjectDraft } from '../../lib/admin-project-draft'
 
-export function LoginForm({ initialError = null }: { initialError?: string | null }) {
+export function LoginForm({ initialError = null, clearAdminDraft = false }: { initialError?: string | null; clearAdminDraft?: boolean }) {
   const [state, action, pending] = useActionState(signIn, { error: initialError })
   const [email, setEmail] = useState('')
+  useEffect(() => {
+    // Logout keeps its server redirect. Only the server-confirmed anonymous
+    // login screen clears the tab draft, never a pending/failed sign-out.
+    if (!clearAdminDraft) return
+    try { clearProjectDraft(window.sessionStorage) } catch { /* Storage may be blocked. */ }
+  }, [clearAdminDraft])
   const inputClass = 'mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:bg-zinc-50 disabled:text-zinc-500'
 
   return (

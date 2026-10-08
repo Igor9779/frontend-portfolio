@@ -325,6 +325,14 @@ Empty results render “No projects to display yet.” Database failures throw a
 
 Live GitHub import, OpenAI Auto-fill and real website screenshots are available only in the protected CMS; the public demo offers disclosed local simulations. Production database and Storage mutations stay server-side; there is no browser Supabase client, project mutation API route or service-role key. Public demo changes use browser state and tab storage only.
 
+## Security Hardening (Stage 14)
+
+Real administrator operations independently verify authenticated identity and current administrator membership. Supabase RLS remains authoritative for database and Storage writes. Website screenshot capture is admin-only with a restricted HTTPS policy and DNS-pinned transport; OpenAI runs only on the server after administrator authorization. The public CMS demo uses deterministic local simulations and cannot reach these production handlers.
+
+Global response headers prevent framing (`Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`), disable content sniffing and camera/microphone/geolocation access, and use `strict-origin-when-cross-origin` referrers. They apply to the portfolio, CMS demo, administrator pages and preserved static sites. No script/style CSP or custom HSTS is added. After successful logout redirects to a server-confirmed anonymous login screen, the browser removes only the real Add Project draft key; demo state and unrelated browser storage remain intact. Failed logout retains the draft. An expired session reaching that anonymous login screen also clears the draft.
+
+Regression tests exercise the real authorization helper, header scope, logout cleanup, and the existing screenshot, AI, GitHub, upload and demo isolation boundaries. No authentication redesign, dependency change, SQL/RLS/RPC change or legacy demo modification is part of this hardening pass.
+
 ## CMS Interface
 
 `/admin` calls `getAdminProjects()` on the server and passes camelCase `AdminProject` objects into `AdminProjects`. Both queries share a single row-reading helper. Public `getProjects()` always uses an anonymous client and adds `visible = true`, even for a signed-in administrator. The admin query first calls `requireAdmin()`, then requests all projects with that user's authenticated client. Both queries use deterministic position/ID ordering and uncached fetching.
