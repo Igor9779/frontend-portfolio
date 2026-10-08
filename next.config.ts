@@ -9,6 +9,9 @@ const staticProjects = [
 ]
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    '/admin/screenshot': ['node_modules/@sparticuz/chromium/bin/**'],
+  },
   experimental: {
     // Allow one 5 MiB preview plus the bounded form fields/multipart envelope.
     serverActions: { bodySizeLimit: '6mb' },

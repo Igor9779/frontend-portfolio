@@ -1,10 +1,10 @@
 'use client'
 
-import { useActionState, useId, useRef, useState } from 'react'
+import { useActionState, useEffect, useId, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
 import { unstable_rethrow } from 'next/navigation'
 import type { AdminProject } from '../../types/admin-project'
-import type { ProjectFormDraft, ProjectFormPrefill, ProjectFormValues, ProjectSaveResult } from '../../types/project-form'
+import type { ProjectFormDraft, ProjectFormPrefill, ProjectFormValues, ProjectSaveResult, ProjectPreviewToolsProps } from '../../types/project-form'
 import type { AiProjectSuggestions } from '../../types/ai-autofill'
 import { mergeAiSuggestions } from '../../lib/ai-suggestions'
 import { projectLimits } from '../../lib/project-validation'
@@ -12,10 +12,12 @@ import { Dialog } from './Dialog'
 import { Icon } from './Icon'
 import { TechnologyInput } from './TechnologyInput'
 import { PreviewImageInput } from './PreviewImageInput'
+import { PendingPreviewFiles } from '../../lib/pending-preview'
+import type { PendingPreview } from '../../lib/pending-preview'
 
 const inputClass = 'w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-600 focus:ring-2 focus:ring-zinc-900/10 aria-invalid:border-red-400'
 
-export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftChange, onDiscardDraft, draftPersistent, onClose, onSaved, onSave, prefill: Prefill, localOnly = false }: {
+export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftChange, onDiscardDraft, draftPersistent, onClose, onSaved, onSave, prefill: Prefill, previewTools: PreviewTools, localOnly = false }: {
   mode: 'add' | 'edit'
   onSave: (formData: FormData) => Promise<ProjectSaveResult>
   localOnly?: boolean
@@ -26,6 +28,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   onDraftChange?: (draft: ProjectFormDraft) => void
   onDiscardDraft?: () => void
   draftPersistent?: boolean
+  previewTools?: ComponentType<ProjectPreviewToolsProps>
   prefill?: ComponentType<{ disabled: boolean; repositoryUrl: string; onApply: (fields: ProjectFormPrefill) => void;
     onApplySuggestions: (suggestions: AiProjectSuggestions, expectedRepository: string) => boolean;
     onPendingChange: (pending: boolean) => void }>
@@ -34,6 +37,11 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   const submitting = useRef(false)
   const [previewReady, setPreviewReady] = useState(true)
   const [prefillPending, setPrefillPending] = useState(false)
+  const [screenshotPending, setScreenshotPending] = useState(false)
+  const [autoCapture, setAutoCapture] = useState<ProjectPreviewToolsProps['autoCapture']>(null)
+  const [previewFiles] = useState(() => new PendingPreviewFiles())
+  const [selection, setSelection] = useState<PendingPreview | null>(null)
+  useEffect(() => () => previewFiles.dispose(), [previewFiles])
   const [draft, setDraft] = useState<ProjectFormDraft>(() => initialDraft ?? { previewMode: 'keep', importedRepository: null, values: {
     title: initialProject?.title ?? '',
     category: initialProject?.category ?? '',
@@ -50,6 +58,10 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   const { values, previewMode, importedRepository } = draft
   const [result, save, pending] = useActionState<ProjectSaveResult | null, FormData>(async (_previous, formData) => {
     try {
+      // Manual and generated files share exactly one pending-file source.
+      // React/native file inputs cannot represent a server-generated File.
+      if (previewFiles.selection) formData.set('previewFile', previewFiles.selection.file)
+      else formData.delete('previewFile')
       // Omit the native unselected-file placeholder before React serializes
       // FormData; its empty filename may otherwise become "undefined".
       const file = formData.get('previewFile')
@@ -88,7 +100,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
   return (
     <Dialog onClose={onClose} busy={busy} titleId={`${id}-title`} descriptionId={`${id}-description`}>
       <form action={save} onSubmit={(event) => {
-        if (submitting.current || prefillPending || !previewReady) event.preventDefault()
+        if (submitting.current || prefillPending || screenshotPending || !previewReady) event.preventDefault()
         else submitting.current = true
       }} onReset={(event) => event.preventDefault()} aria-busy={busy} className="flex max-h-[calc(100dvh-32px)] flex-col">
         <input type="hidden" name="previewMode" value={previewMode} />
@@ -110,6 +122,10 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
             onApply={({ githubRepository, ...fields }) => {
               const current = currentDraft.current
               changeDraft({ ...current, values: { ...current.values, ...fields, technologies: [...fields.technologies] }, importedRepository: githubRepository })
+              if (PreviewTools) {
+                setScreenshotPending(true)
+                setAutoCapture(request => ({ url: fields.productionUrl, sequence: (request?.sequence ?? 0) + 1 }))
+              }
             }} onApplySuggestions={(suggestions, expectedRepository) => {
               // A pending response also belongs to the import provenance at
               // request time, even if a later URL edit identifies the same repo.
@@ -141,7 +157,18 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
               {feedback('description')}
             </div>
             <div className="sm:col-span-2">
-              <PreviewImageInput localOnly={localOnly} currentPreview={initialProject?.previewUrl ?? null} sourceUrl={values.previewUrl} onSourceChange={(value) => changeDraft({ ...draft, values: { ...values, previewUrl: value }, previewMode: 'url' })} onValidityChange={setPreviewReady} fileError={errors?.previewFile} urlError={errors?.previewUrl} />
+              <PreviewImageInput selection={selection} onFileChange={(file) => setSelection(previewFiles.replace(file))} localOnly={localOnly} currentPreview={initialProject?.previewUrl ?? null} sourceUrl={values.previewUrl} onSourceChange={(value) => {
+                previewFiles.invalidate()
+                changeDraft({ ...draft, values: { ...values, previewUrl: value }, previewMode: 'url' })
+              }} onValidityChange={setPreviewReady} fileError={errors?.previewFile} urlError={errors?.previewUrl}>
+                {PreviewTools && <PreviewTools disabled={busy} productionUrl={values.productionUrl} autoCapture={autoCapture}
+                  previewRevision={previewFiles.revision} onPendingChange={setScreenshotPending}
+                  onAccept={(file, expectedUrl, expectedRevision) => {
+                    if (currentDraft.current.values.productionUrl !== expectedUrl || previewFiles.revision !== expectedRevision || submitting.current) return false
+                    setSelection(previewFiles.replace(file)); setPreviewReady(true)
+                    return true
+                  }} />}
+              </PreviewImageInput>
             </div>
             {links.map((field) => (
               <div key={field.name} className="min-w-0">
@@ -171,7 +198,7 @@ export function ProjectFormDialog({ mode, initialProject, initialDraft, onDraftC
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onClose} disabled={busy} className="rounded-md border border-zinc-300 bg-white px-4 py-2.5 text-xs font-medium hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:opacity-40">Cancel</button>
-            <button type="submit" disabled={busy || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
+            <button type="submit" disabled={busy || screenshotPending || !previewReady} className="rounded-md bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 disabled:cursor-wait disabled:opacity-50">{pending ? 'Saving…' : 'Save project'}</button>
           </div>
         </div>
       </form>

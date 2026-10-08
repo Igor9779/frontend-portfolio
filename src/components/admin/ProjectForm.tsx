@@ -6,6 +6,7 @@ import { clearProjectDraft, emptyProjectDraft, loadProjectDraft, persistProjectD
 import { createProject, updateProject } from '../../app/admin/project-actions'
 import { ProjectFormDialog } from './ProjectFormDialog'
 import { ProjectPrefill } from './ProjectPrefill'
+import { ProjectScreenshot } from './ProjectScreenshot'
 
 const subscribe = () => () => {}
 
@@ -19,7 +20,7 @@ export function ProjectForm({ mode, initialProject, onClose, onSaved }: {
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false)
   if (mode === 'add') return hydrated ? <AddProjectForm onClose={onClose} onSaved={onSaved} /> : null
   return <ProjectFormDialog mode={mode} initialProject={initialProject} onClose={onClose} onSaved={onSaved}
-    onSave={(formData) => updateProject(initialProject?.id, formData)} />
+    previewTools={ProjectScreenshot} onSave={(formData) => updateProject(initialProject?.id, formData)} />
 }
 
 function AddProjectForm({ onClose, onSaved }: { onClose: () => void; onSaved: (project: AdminProject) => void }) {
@@ -39,5 +40,5 @@ function AddProjectForm({ onClose, onSaved }: { onClose: () => void; onSaved: (p
       setForm((current) => ({ draft: emptyProjectDraft(), version: current.version + 1 }))
     }}
     onSaved={(project) => { clearProjectDraft(loaded.storage); onSaved(project) }}
-    prefill={ProjectPrefill} onSave={createProject} />
+    prefill={ProjectPrefill} previewTools={ProjectScreenshot} onSave={createProject} />
 }

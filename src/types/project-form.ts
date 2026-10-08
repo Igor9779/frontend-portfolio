@@ -25,6 +25,17 @@ export interface ProjectFormDraft {
   importedRepository: string | null
 }
 
+// Presentation injection only. The shared/demo form never imports a capture
+// client, route, network policy, browser launcher or other server machinery.
+export interface ProjectPreviewToolsProps {
+  disabled: boolean
+  productionUrl: string
+  autoCapture: { url: string; sequence: number } | null
+  previewRevision: number
+  onAccept: (file: File, expectedUrl: string, expectedRevision: number) => boolean
+  onPendingChange: (pending: boolean) => void
+}
+
 export type ProjectFieldErrors = Partial<Record<keyof ProjectFormValues | 'previewFile', string>>
 export type ProjectSaveResult =
   | { success: true; project: AdminProject }

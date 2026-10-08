@@ -174,7 +174,7 @@ It contains:
 
 ## Run Locally
 
-Use Node.js 20.19+, 22.13+ or 24+ (Node.js 22.13+ recommended).
+Use Node.js 22.17+ or 24+. Screenshot Chromium requires this minimum; configure the Vercel project to use Node 22.x or 24.x as well.
 
 ```bash
 npm install
@@ -231,6 +231,7 @@ src/
     admin/order-actions.ts  Authorized atomic project-order Server Action
     admin/github-actions.ts  Authorized read-only GitHub metadata import
     admin/ai-actions.ts  Authorized AI suggestions; never saves project data
+    admin/screenshot/route.ts  Authorized same-origin POST; pending JPEG only
     cms-demo/page.tsx  Public CMS demo; server-read visible project snapshot
   components/       Hero, Projects, ProjectCard and Footer
     admin/          Project list, shared form, technology input and dialogs
@@ -250,6 +251,8 @@ src/
     project-order.ts  Saved/draft ordering, control guards and ID validation
     cms-demo.ts      Local demo state, validated tab storage and blob lifetimes
     preview-file.ts  Shared size/type/signature validation
+    pending-preview.ts  Manual/generated File state and object URL lifecycle
+    screenshots/    Bounded capture, URL/IP checks and DNS-pinned CONNECT proxy
     preview-path.ts  Strict managed preview URL recognition
     project-previews.ts  Authorized server uploads and compensating cleanup
     auth.ts         Verified identity and admin_users authorization
@@ -313,7 +316,7 @@ The homepage renders on each incoming request using Next.js `connection()`, and 
 
 Empty results render “No projects to display yet.” Database failures throw a sanitized server error and show an error boundary with retry; there is no automatic fallback to local projects. Reads time out after ten seconds. Builds validate environment configuration and compile the integration but do not query the database.
 
-GitHub import and optional AI Auto-fill are available only in the real CMS Add Project form. Automatic screenshots remain future work. Production database and Storage mutations stay server-side; there is no browser Supabase client, mutation API route or service-role key. Public demo changes use browser state and tab storage only.
+GitHub import, optional AI Auto-fill and automatic website screenshots are available only in the real CMS. Production database and Storage mutations stay server-side; there is no browser Supabase client, project mutation API route or service-role key. Public demo changes use browser state and tab storage only.
 
 ## CMS Interface
 
@@ -328,6 +331,7 @@ The interface includes:
 - A shared Add/Edit dialog with project fields, technology chips and visibility. Save persists validated changes. The real Add form keeps unfinished fields in this tab when closed; Discard draft resets them. Closing Edit discards its changes. Failed saves retain entered values and display field or generic errors.
 - A compact GitHub import section in the real Add Project form. Public repository metadata fills editable fields; import itself never saves a project or uploads a preview.
 - Optional preview selection/replacement with a local image preview and filename. Upload starts only on Save; cancelling creates no Storage object. An existing URL/local asset remains available as a secondary option.
+- Automatic screenshot attempts after GitHub import and Retake Screenshot beside the preview. Manual Choose File remains available; capture failures preserve the form and current preview.
 - Explicit delete confirmation with a pending state, error feedback and focus restoration after deletion.
 - Dedicated mouse/touch drag handles, keyboard Arrow Up/Down and Move Up/Down buttons. Reordering changes only the draft until Save order; Reset adopts the latest saved order. Clear search before reordering so moves always correspond to the complete list.
 - Native modal dialogs with focus containment, Escape/backdrop dismissal, focus restoration and scrollable forms on smaller viewports. Dismissal and duplicate submission are disabled while a mutation is pending.
@@ -429,6 +433,24 @@ Configure only the server-side variable `OPENAI_API_KEY` locally and on Vercel. 
 The official `openai` SDK uses Responses with centralized `gpt-5.4-mini`, reasoning disabled, no tools, no automatic retries, a 25-second provider timeout and a 1,200-token output cap. The action has a 45-second post-authorization deadline; the admin page permits 90 seconds for authorization and response overhead. Strict JSON Schema requires exactly five fields, followed by independent type/length/control-character validation and technology normalization. Conservative evidence checks reject explicit contradictions of documented mock/no-backend/no-database/no-authentication functionality and unsupported technologies. They cannot establish every semantic fact, so administrator review remains required. Repository content is untrusted data, separated from trusted instructions; environment/session data and preview files are never sent to the provider.
 
 This feature changes no SQL, RLS, Storage policies or mutation architecture. All normal tests use mocked GitHub/provider responses, including the MUSE scripted-chat regression fixture, and never make paid AI calls. Live AI verification requires an explicit, suggestion-only approval and must not save a project or touch Storage.
+
+## Automatic Website Screenshot (Stage 12)
+
+After a successful GitHub import, the real Add form attempts to capture its imported Production URL. Supported targets are HTTPS subdomains of `vercel.app`, `netlify.app`, `pages.dev` and `github.io`, using port 443 without credentials. Custom domains are skipped without changing imported metadata; manual Choose File remains available. Retake Screenshot uses the current Production URL without repeating import, AI or Save. Capture errors retain the existing preview and draft.
+
+The same-origin `POST /admin/screenshot` Route Handler independently calls `requireAdmin()` before DNS/browser work and returns a raw, uncached JPEG up to 2 MiB. Capture uses `playwright-core` 1.63.0 and bundled `@sparticuz/chromium` 153.0.0, with a 1440 × 900 viewport, device scale 1, quality 85, reduced motion, bounded readiness and no full-page capture. Navigation is limited to 15 seconds and capture to 45 seconds, with no retry. No screenshot service, AI request, executable download during capture or new credential is used.
+
+A per-capture loopback CONNECT proxy resolves both A/AAAA, rejects every unsafe/mixed answer, and connects directly to a vetted public IP without a second hostname lookup. HTTPS tunnels retain certificate verification. CDP pauses both requests and responses to validate redirects before following them; the redirect chain is bounded. Only the target, validated hosting redirects and a short exact list of asset CDNs are permitted. Frames, workers, WebSockets, device permissions, downloads and popups are restricted. Each browser is fresh and receives an explicit minimal environment without application secrets. This is an application-level egress boundary for trusted single-admin usage, not VM isolation against a native browser exploit.
+
+Screenshot bytes become a browser-local JPEG File and enter the same pending preview mechanism as manual images. Nothing reaches Supabase Storage or project data until the existing Save action. Cancel releases local object URLs; successful replacement releases the previous URL. Stale screenshot responses cannot override a changed URL or newer preview. AI suggestions still change only their five text/technology fields. Tab drafts never serialize files, blobs or screenshot bytes; after refresh, use Retake or Choose File. `/cms-demo` has no capture control or import path to screenshot code.
+
+Use Node 22.17+ or 24+ and the Node.js Vercel runtime. Chromium assets are included specifically in the screenshot route trace. After building, run `npm run check:screenshot-bundle` to verify the binary assets, matching Chromium major version and conservative Next route/shared-runtime footprint below 250 MiB. The packaged executable targets Linux x86_64. This local inspection does not prove a Vercel launch: confirm the project Node version, deployment architecture, 2 GB memory availability and Preview runtime before considering deployment verified. macOS development uses an already installed compatible Chrome/Playwright browser; it never downloads one during a capture request.
+
+macOS development discovers an installed Playwright browser or Chrome/Chromium in system/user Applications, checking app metadata for Chromium 153 or newer. No browser is downloaded. Linux always uses bundled Sparticuz; production/Vercel never falls back to a macOS executable. Browser launch security settings are identical. Server warnings identify bounded capture stages (launch, proxy, navigation, output, timeout) and safe failure categories without logging URLs, credentials, headers or raw browser errors. Client errors remain generic.
+
+Response interception supports HTTP/2, whose status text is empty: Chromium supplies the standard response phrase instead of receiving an invalid empty override. Server diagnostics distinguish interception, TLS, HTTP, DNS, tunnel and navigation failures; raw errors remain private.
+
+The normal tests mock websites, DNS/provider calls and screenshot output; local socket fixtures exercise the proxy without contacting production sites. `npm run test:screenshot-navigation` separately runs installed Chrome against ephemeral local HTTPS fixtures through the production CONNECT proxy and interception code. It checks HTTP/2 and HTTP/1.1 redirects, certificate rejection and unsafe redirects using injected DNS/transport. Only the fixture's temporary certificate is trusted in successful test browsers; production TLS checks stay intact. This command requires OpenSSL and a compatible installed macOS browser or bundled Linux Chromium, and takes no screenshots. Any live website capture is a separately approved, suggestion-only check with no Save, database or Storage mutation.
 
 ## Project Preview Storage (Stage 7)
 

@@ -33,6 +33,7 @@ const formReact = moduleUrl(`
     return [fixture.slots[index], value => { fixture.slots[index] = typeof value === 'function' ? value(fixture.slots[index]) : value }]
   }
   export const useState = slot
+  export function useEffect() {}
   export function useRef(initial) { return slot({current:initial})[0] }
   export function useActionState(action, initial) { const [value,set] = slot(initial); return [value, async data => { const result = await action(value,data); set(result); return result }, false] }
   export function useSyncExternalStore(_subscribe, getSnapshot) { return getSnapshot() }
@@ -41,6 +42,7 @@ const { ProjectFormDialog } = await import(compile('src/components/admin/Project
   react: formReact, 'next/navigation': moduleUrl('export function unstable_rethrow() {}'),
   '../../lib/project-validation': validation,
   '../../lib/ai-suggestions': suggestionsModule,
+  '../../lib/pending-preview': compile('src/lib/pending-preview.ts'),
   './Dialog': moduleUrl('export function Dialog() {}'), './Icon': moduleUrl('export function Icon() {}'),
   './TechnologyInput': moduleUrl('export function TechnologyInput() {}'), './PreviewImageInput': moduleUrl('export function PreviewImageInput() {}'),
 }))
@@ -48,6 +50,7 @@ const { ProjectForm } = await import(compile('src/components/admin/ProjectForm.t
   react: formReact, '../../lib/admin-project-draft': draftModule,
   '../../app/admin/project-actions': moduleUrl('export async function createProject() { return globalThis.projectFormActionResult }; export async function updateProject() { throw new Error("Unexpected edit") }'),
   './ProjectFormDialog': moduleUrl('export function ProjectFormDialog() {}'), './ProjectPrefill': moduleUrl('export function ProjectPrefill() {}'),
+  './ProjectScreenshot': moduleUrl('export function ProjectScreenshot() {}'),
 }))
 function formHarness(initialDraft = emptyProjectDraft()) {
   globalThis.projectFormHooks = { index: 0, slots: [] }
