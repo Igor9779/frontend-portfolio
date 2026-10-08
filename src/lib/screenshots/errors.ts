@@ -1,5 +1,5 @@
 import 'server-only'
-import type { ScreenshotReason, ScreenshotStage } from './diagnostics'
+import type { ScreenshotModuleFailure, ScreenshotReason, ScreenshotStage } from './diagnostics'
 
 export type ScreenshotErrorCode = 'invalid' | 'unsupported' | 'unsafe' | 'dns' | 'redirect' | 'timeout' | 'unavailable' | 'too-large' | 'busy'
 
@@ -20,13 +20,15 @@ export class ScreenshotError extends Error {
   readonly stage?: ScreenshotStage
   readonly reason?: ScreenshotReason
   readonly httpStatus?: number
-  constructor(code: ScreenshotErrorCode, stage?: ScreenshotStage, reason?: ScreenshotReason, httpStatus?: number) {
+  readonly moduleFailure?: ScreenshotModuleFailure
+  constructor(code: ScreenshotErrorCode, stage?: ScreenshotStage, reason?: ScreenshotReason, httpStatus?: number, moduleFailure?: ScreenshotModuleFailure) {
     super(messages[code])
     this.name = 'ScreenshotError'
     this.code = code
     this.stage = stage
     this.reason = reason
     this.httpStatus = httpStatus
+    this.moduleFailure = moduleFailure
   }
 }
 

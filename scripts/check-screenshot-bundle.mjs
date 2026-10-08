@@ -1,19 +1,19 @@
 // Read-only build inspection. Never launches Chromium or captures a website.
 import assert from 'node:assert/strict'
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { copyFile, mkdtemp, rm } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { createBrotliDecompress } from 'node:zlib'
+import { assertScreenshotTrace, copyScreenshotTrace, screenshotTrace } from './screenshot-trace.mjs'
 
 const root = process.cwd()
 const tracePath = resolve(root, '.next/server/app/admin/screenshot/route.js.nft.json')
 assert.ok(existsSync(tracePath), 'Run the production build before inspecting the screenshot trace.')
-const files = new Set([resolve(root, '.next/server/app/admin/screenshot/route.js')])
-for (const trace of [tracePath, resolve(root, '.next/next-server.js.nft.json')]) {
-  if (existsSync(trace)) for (const file of JSON.parse(readFileSync(trace, 'utf8')).files) files.add(resolve(dirname(trace), file))
-}
-for (const name of ['chromium.br', 'fonts.tar.br', 'al2023.tar.br', 'swiftshader.tar.br']) {
-  assert.ok(files.has(resolve(root, 'node_modules/@sparticuz/chromium/bin', name)), `Missing bundled Chromium asset: ${name}`)
-}
+const { routeFiles, allFiles: files } = await screenshotTrace(root)
+assertScreenshotTrace(root, routeFiles)
 assert.ok([...files].every(file => !/\/(?:\.env(?:\.[^/]*)?)$/.test(file)), 'An environment file must never enter the Function trace.')
 assert.ok([...files].every(file => !file.includes('/Applications/')), 'A local browser installation must never enter the Function trace.')
 for (const file of files) {
@@ -41,6 +41,17 @@ const header = await new Promise((resolveHeader, reject) => {
 })
 assert.equal(header.subarray(0, 4).toString('hex'), '7f454c46', 'The packaged executable must be a Linux ELF binary.')
 assert.equal(header.readUInt16LE(18), 62, 'The bundled executable targets Linux x86_64; verify the deployment architecture.')
+const isolated = await mkdtemp(resolve(tmpdir(), 'screenshot-traced-import-'))
+try {
+  await copyScreenshotTrace(root, files, isolated)
+  await copyFile(resolve(root, 'scripts/screenshot-import-check.cjs'), resolve(isolated, 'screenshot-import-check.cjs'))
+  const { stdout } = await promisify(execFile)(process.execPath, ['screenshot-import-check.cjs'], {
+    cwd: isolated, timeout: 15_000, maxBuffer: 4096,
+    // VERCEL is a fixed feature flag here, not a copied environment value.
+    env: { PATH: '/usr/bin:/bin', NODE_ENV: 'production', VERCEL: '1' },
+  })
+  console.log(stdout.trim())
+} finally { await rm(isolated, { recursive: true, force: true }) }
 console.log(`PASS: ${playwright.version} / Chromium ${chromium.version}; Linux x86_64 assets included.`)
 console.log(`Conservative Next.js route + shared runtime trace: ${(bytes / 1024 / 1024).toFixed(2)} MiB, ${files.size} files.`)
 console.log('Node configuration and trace checked. Actual Vercel packaging/launch requires a Preview deployment; this check does not deploy or run Chromium.')

@@ -26,6 +26,27 @@ const reasons = [
 ] as const
 export type ScreenshotReason = typeof reasons[number]
 
+const modules = ['capture', 'chromium', 'network', 'proxy', 'policy', 'dns', 'node-builtins', '@sparticuz/chromium', 'playwright-core', 'ipaddr.js', 'tar-fs'] as const
+const categories = ['MODULE_NOT_FOUND', 'PACKAGE_ASSET_MISSING', 'NATIVE_LOAD_FAILED', 'INCOMPATIBLE_RUNTIME', 'MODULE_FORMAT_ERROR', 'CHUNK_LOAD_FAILED', 'IMPORT_EVALUATION_FAILED'] as const
+export type ScreenshotModule = typeof modules[number]
+export type ScreenshotModuleFailure = { module: ScreenshotModule; category: typeof categories[number] }
+
+// Inspect only to classify. Never emit the exception message, stack or path.
+export function classifyScreenshotModule(error: unknown, fallback: ScreenshotModule): ScreenshotModuleFailure {
+  const text = error instanceof Error ? error.message : ''
+  const code = error instanceof Error && 'code' in error ? error.code : undefined
+  const module = (['@sparticuz/chromium', 'playwright-core', 'ipaddr.js', 'tar-fs'] as const).find(name => text.includes(name)) ?? fallback
+  const category = /browsers\.json|chromium\.br|fonts\.tar\.br|al2023\.tar\.br|swiftshader\.tar\.br/.test(text)
+    && (code === 'ENOENT' || /Cannot find|does not exist|no such file/i.test(text)) ? 'PACKAGE_ASSET_MISSING'
+    : /Loading chunk|ChunkLoadError|Cannot find.*chunks\//.test(text) ? 'CHUNK_LOAD_FAILED'
+    : ['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ERR_PACKAGE_PATH_NOT_EXPORTED'].includes(String(code)) || /Cannot find (?:module|package)/.test(text) ? 'MODULE_NOT_FOUND'
+    : code === 'ERR_DLOPEN_FAILED' || /invalid ELF|wrong ELF|shared object|NODE_MODULE_VERSION/.test(text) ? 'NATIVE_LOAD_FAILED'
+    : /requires Node\.js|Unsupported.*Node/i.test(text) ? 'INCOMPATIBLE_RUNTIME'
+    : ['ERR_REQUIRE_ESM', 'ERR_REQUIRE_ASYNC_MODULE', 'ERR_UNKNOWN_FILE_EXTENSION'].includes(String(code)) ? 'MODULE_FORMAT_ERROR'
+    : 'IMPORT_EVALUATION_FAILED'
+  return { module, category }
+}
+
 export function classifyScreenshotReason(error: unknown, fallback: ScreenshotReason = 'UNAVAILABLE'): ScreenshotReason {
   if (error instanceof Error && 'reason' in error && reasons.includes(error.reason as ScreenshotReason)) return error.reason as ScreenshotReason
   const text = error instanceof Error ? error.message : ''
@@ -45,5 +66,9 @@ export function screenshotDiagnostic(stage: ScreenshotStage, code: ScreenshotErr
   const reason = classifyScreenshotReason(error)
   const status = error instanceof Error && 'httpStatus' in error ? error.httpStatus : undefined
   const httpStatus = typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 ? status : undefined
-  console.warn(code === 'timeout' ? 'SCREENSHOT_TIMEOUT' : events[stage], { stage, code, reason, ...(httpStatus === undefined ? {} : { httpStatus }) })
+  const failure = error instanceof Error && 'moduleFailure' in error ? error.moduleFailure as ScreenshotModuleFailure | undefined : undefined
+  const moduleDetails = stage === 'module-load' && failure && modules.includes(failure.module) && categories.includes(failure.category)
+    ? { module: failure.module, category: failure.category } : undefined
+  console.warn(code === 'timeout' ? 'SCREENSHOT_TIMEOUT' : events[stage], { stage, code, reason,
+    ...(httpStatus === undefined ? {} : { httpStatus }), ...(moduleDetails ?? {}) })
 }

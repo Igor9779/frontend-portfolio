@@ -9,8 +9,15 @@ const staticProjects = [
 ]
 
 const nextConfig: NextConfig = {
+  // Keep package-relative runtime lookups intact in both production bundlers.
+  serverExternalPackages: ['@sparticuz/chromium', 'playwright-core'],
   outputFileTracingIncludes: {
-    '/admin/screenshot': ['node_modules/@sparticuz/chromium/bin/**'],
+    '/admin/screenshot': [
+      'node_modules/@sparticuz/chromium/bin/**',
+      // Turbopack misses Playwright's computed require(packageRoot/browsers.json).
+      // The registry is required during import, even with an explicit executable.
+      'node_modules/playwright-core/browsers.json',
+    ],
   },
   experimental: {
     // Allow one 5 MiB preview plus the bounded form fields/multipart envelope.
