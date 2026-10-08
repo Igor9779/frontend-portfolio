@@ -14,6 +14,8 @@ export interface DemoState {
   order: ProjectOrderState
 }
 
+export function isLocalDemoPreview(value: string | null) { return value === null || value.startsWith('/assets/') }
+
 export function createDemoState(projects: readonly AdminProject[]): DemoState {
   return {
     projects: projects.map((project, position) => ({ ...project, technologies: [...project.technologies], position })),
@@ -25,8 +27,8 @@ export function saveDemoProject(state: DemoState, project: DemoProject): DemoSta
   if (!sameProjectOrder(state.order.savedOrder, state.order.draftOrder)) return state
   const existing = state.projects.some((item) => item.id === project.id)
   if (!existing && state.projects.length >= maxDemoProjects) return state
-  const projects = existing ? state.projects.map((item) => item.id === project.id ? project : item) : [...state.projects, project]
-  return { projects, order: createProjectOrder(projects.map((item) => item.id)) }
+  const projects = existing ? state.projects.map((item) => item.id === project.id ? project : item) : [project, ...state.projects]
+  return createDemoState(projects)
 }
 
 export function deleteDemoProject(state: DemoState, id: string): DemoState {
@@ -69,7 +71,9 @@ export function parseDemoState(raw: string | null): DemoState | null {
       const validated = validateProject(item)
       if (!validated.success || ids.has(id)) return null
       ids.add(id)
-      projects.push({ ...validated.project, id, position: 0 })
+      // Older v1 snapshots could contain remote production previews. Keep their
+      // text/order, but never load those remote images in the isolated demo.
+      projects.push({ ...validated.project, previewUrl: isLocalDemoPreview(validated.project.previewUrl) ? validated.project.previewUrl : null, id, position: 0 })
     }
     const order = validateProjectOrder(value.draftOrder, value.savedOrder)
     if (!order.success || order.orderedIds.length !== ids.size || order.orderedIds.some((id) => !ids.has(id))) return null

@@ -45,11 +45,13 @@ test('Add, Edit, visibility changes and Delete affect local state only', () => {
   const initial = createDemoState(originals)
   const created = saveDemoProject(initial, added)
   assert.equal(created.projects.length, 4)
-  assert.equal(created.projects.at(-1).position, 3)
+  assert.equal(created.projects[0].position, 0)
+  assert.deepEqual(created.projects.map(project => project.position), [0, 1, 2, 3])
+  assert.deepEqual(created.projects.slice(1).map(project => project.id), ids)
   const edited = saveDemoProject(created, { ...added, title: 'Edited locally', visible: true, technologies: ['WebP'] })
-  assert.equal(edited.projects.at(-1).id, added.id)
-  assert.equal(edited.projects.at(-1).visible, true)
-  assert.equal(created.projects.at(-1).visible, false)
+  assert.equal(edited.projects[0].id, added.id)
+  assert.equal(edited.projects[0].visible, true)
+  assert.equal(created.projects[0].visible, false)
   const deleted = deleteDemoProject(edited, added.id)
   assert.deepEqual(deleted, initial)
   assert.deepEqual(originals, snapshot)
@@ -113,7 +115,7 @@ test('stored local images fall back to prior stable URL; blob references are nev
   assert.equal(raw.includes('localPreviewFallback'), false)
   assert.equal(parseDemoState(raw).projects[0].previewUrl, '/assets/preview.png')
   const created = saveDemoProject(demo, { ...added, previewUrl: 'blob:new-local-image', localPreviewFallback: null })
-  assert.equal(parseDemoState(serializeDemoState(created)).projects.at(-1).previewUrl, null)
+  assert.equal(parseDemoState(serializeDemoState(created)).projects[0].previewUrl, null)
 })
 
 test('session parsing rejects corrupted, unsafe, oversized and inconsistent data', () => {
@@ -140,6 +142,16 @@ test('session parsing rejects corrupted, unsafe, oversized and inconsistent data
   const parsed = parseDemoState(JSON.stringify(extra))
   assert.equal(JSON.stringify(parsed).includes('INTERNAL_SENTINEL'), false)
   assert.equal(parsed.projects[0].position, 0)
+})
+
+test('existing v1 text/order survive migration while remote previews are dropped without fetching', () => {
+  const stored = JSON.parse(serializeDemoState(createDemoState(originals)))
+  stored.projects[0].previewUrl = 'https://storage.example.test/storage/v1/object/public/project-previews/example.jpg'
+  const restored = parseDemoState(JSON.stringify(stored))
+  assert.equal(restored.projects[0].previewUrl, null)
+  assert.equal(restored.projects[0].title, originals[0].title)
+  assert.deepEqual(restored.order.savedOrder, ids)
+  assert.equal(restored.projects[1].previewUrl, '/assets/preview.png')
 })
 
 test('browser preview URLs survive form close and are released on replacement/delete/reset/unmount', () => {
@@ -178,7 +190,7 @@ function clientImportGraph(entry) {
     visited.add(path)
     const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
     function inspect(node) {
-      if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+      if ((ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) || (ts.isExportDeclaration(node) && node.moduleSpecifier && !node.isTypeOnly)) {
         if (node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)
           && node.importClause.namedBindings.elements.every(item => item.isTypeOnly)) return
         const specifier = node.moduleSpecifier.text
@@ -198,15 +210,21 @@ function clientImportGraph(entry) {
   return { paths: [...visited].map(path => relative(root, path)), packages: [...packages] }
 }
 
-test('demo client import graph cannot reach real actions, auth, Supabase clients, Storage or RPC helpers', () => {
-  const graph = clientImportGraph('src/components/demo/CmsDemo.tsx')
+for (const entry of ['src/components/demo/CmsDemo.tsx', 'src/app/cms-demo/page.tsx']) test(`${entry} import graph cannot reach real providers, actions, auth, Storage or RPC`, () => {
+  const graph = clientImportGraph(entry)
   for (const path of graph.paths) {
     assert.ok(!path.startsWith('src/app/admin/'), path)
     assert.ok(!/src\/lib\/(auth|supabase\/|project-previews|projects\.ts)/.test(path), path)
-    assert.ok(!/GithubImport|github-import|github-projects|github-actions|admin-project-draft|AiAutofill|ProjectPrefill|ai-actions|ai-autofill|ai-evidence|github-context|github-api/.test(path), path)
+    assert.ok(!/src\/components\/admin\/(GithubImport|AiAutofill|ProjectPrefill|ProjectForm|ProjectScreenshot)\.tsx/.test(path), path)
+    assert.ok(!/github-import|github-projects|github-actions|admin-project-draft|ai-actions|ai-autofill|ai-evidence|github-context|github-api/.test(path), path)
     assert.ok(!/screenshot|screenshots|ProjectScreenshot/.test(path), path)
     assert.ok(!/['"]use server['"]/.test(source(path)), path)
-    assert.ok(!/\.(rpc|auth|storage)\b|\bfetch\s*\(/.test(source(path)), path)
+    assert.ok(!/\.(rpc|auth|storage)\b|requireAdmin|OPENAI_API_KEY|process\.env|api\.github\.com|\/admin\/screenshot/.test(source(path)), path)
+    if (path === 'src/lib/cms-demo-preview.ts') {
+      assert.equal((source(path).match(/\bfetch\s*\(/g) ?? []).length, 1)
+      assert.match(source(path), /fetch\(museDemoFixture\.previewAsset/)
+      assert.match(source(path), /credentials: 'omit', redirect: 'error'/)
+    } else assert.ok(!/\bfetch\s*\(|XMLHttpRequest|WebSocket|sendBeacon/.test(source(path)), path)
   }
   assert.ok(!graph.packages.some(name => name.includes('supabase') || name === 'openai' || /playwright|sparticuz|ipaddr/.test(name)))
   for (const shared of ['ProjectFormDialog', 'ProjectDeleteDialog', 'AdminProjectCard', 'ProjectDragHandle', 'PreviewImageInput', 'TechnologyInput', 'Dialog'])
@@ -215,30 +233,24 @@ test('demo client import graph cannot reach real actions, auth, Supabase clients
   assert.match(source('src/components/admin/DeleteProjectDialog.tsx'), /from '..\/..\/app\/admin\/project-actions'/)
 })
 
-test('demo route stays anonymous and reads only visible public presentation fields', async () => {
+test('demo route stays anonymous with bundled data and no runtime database loader', async () => {
   assert.match(source('src/proxy.ts'), /matcher: \['\/admin\/:path\*'\]/)
   assert.ok(!/requireAdmin|admin\/actions|cookies\(/.test(source('src/app/cms-demo/page.tsx')))
-  assert.match(source('src/app/cms-demo/page.tsx'), /await getDemoProjects\(\)/)
-  const calls = []
-  const publicClient = { from(table) {
-    calls.push(['from', table])
-    return { select(columns) {
-      calls.push(['select', columns])
-      return { order(column) { calls.push(['order', column]); return this }, eq(column, value) { calls.push(['eq', column, value]); return this },
-        async abortSignal() { return { data: [Object.fromEntries(Object.entries({
-          id: ids[0], title: 'Visible', category: 'Public', short_description: null, description: 'Public description', preview_url: '/assets/preview.png',
-          github_url: null, production_url: null, telegram_url: null, technologies: [], position: 0, visible: true,
-        }))], error: null } } }
-    } }
-  } }
-  globalThis.demoPublicReadFixture = publicClient
-  const { getDemoProjects } = await import(compile('src/lib/projects.ts', {
-    'server-only': moduleUrl(''), './auth': moduleUrl('export async function requireAdmin() { throw new Error("Demo must not authorize") }'),
-    './supabase/public': moduleUrl('export const supabase = globalThis.demoPublicReadFixture'),
+  assert.ok(!/getDemoProjects|lib\/projects|connection\(/.test(source('src/app/cms-demo/page.tsx')))
+  assert.match(source('src/app/cms-demo/page.tsx'), /initialProjects=\{initialDemoProjects\}/)
+  const { initialDemoProjects } = await import(compile('src/lib/cms-demo-fixtures.ts', {
+    './github-repository': compile('src/lib/github-repository.ts'),
   }))
-  const result = await getDemoProjects()
-  assert.deepEqual(calls.filter(call => call[0] === 'eq'), [['eq', 'visible', true]])
-  assert.equal(result.length, 1)
-  assert.equal(result[0].visible, true)
-  for (const internal of ['source', 'github_repo', 'created_at', 'updated_at']) assert.equal(internal in result[0], false)
+  assert.equal(initialDemoProjects.length, 3)
+  assert.deepEqual(initialDemoProjects.map(project => project.position), [0, 1, 2])
+  for (const project of initialDemoProjects) {
+    assert.ok(project.previewUrl.startsWith('/assets/'))
+    assert.ok(existsSync(resolve(root, 'public' + project.previewUrl)))
+    for (const internal of ['source', 'github_repo', 'created_at', 'updated_at']) assert.equal(internal in project, false)
+  }
+  const initial = createDemoState(initialDemoProjects)
+  assert.deepEqual(parseDemoState(serializeDemoState(initial)), initial)
+  const changed = saveDemoProject(initial, added)
+  assert.notDeepEqual(changed, initial)
+  assert.deepEqual(createDemoState(initialDemoProjects), initial)
 })

@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { AdminProject } from '../../types/admin-project'
 import type { ProjectSaveResult } from '../../types/project-form'
-import { changeDemoOrder, createDemoState, deleteDemoProject, DemoPreviewUrls, demoStorageKey, parseDemoState, saveDemoOrder, saveDemoProject, serializeDemoState, type DemoProject, type DemoState } from '../../lib/cms-demo'
+import { changeDemoOrder, createDemoState, deleteDemoProject, DemoPreviewUrls, demoStorageKey, isLocalDemoPreview, parseDemoState, saveDemoOrder, saveDemoProject, serializeDemoState, type DemoProject, type DemoState } from '../../lib/cms-demo'
 import { projectOrderControls } from '../../lib/project-order'
 import { parseProjectFormData } from '../../lib/project-validation'
 import { validatePreviewFile } from '../../lib/preview-file'
@@ -12,6 +12,9 @@ import { ProjectFormDialog } from '../admin/ProjectFormDialog'
 import { ProjectDeleteDialog } from '../admin/ProjectDeleteDialog'
 import { Dialog } from '../admin/Dialog'
 import { Icon } from '../admin/Icon'
+import { DemoProjectPrefill } from './DemoProjectPrefill'
+import { DemoPreviewTools } from './DemoPreviewTools'
+import { demoPreviewAsset, warmDemoPreview } from '../../lib/cms-demo-preview'
 
 const subscribe = () => () => {}
 type Editor = { mode: 'add' } | { mode: 'edit'; project: DemoProject }
@@ -49,6 +52,7 @@ function DemoWorkspace({ initialProjects }: { initialProjects: AdminProject[] })
   const matching = projects.filter((project) => [project.title, project.category, ...project.technologies].some((value) => value.toLowerCase().includes(normalizedQuery)))
 
   useEffect(() => { previews.releaseUnused(demo.projects) }, [demo.projects, previews])
+  useEffect(() => { warmDemoPreview() }, [])
   useEffect(() => () => previews.dispose(), [previews])
   useEffect(() => {
     if (!deleting && focusAfterDelete.current) { addButton.current?.focus(); focusAfterDelete.current = false }
@@ -72,18 +76,19 @@ function DemoWorkspace({ initialProjects }: { initialProjects: AdminProject[] })
     if (controls.crudDisabled || !editor) return { success: false, message: 'Save or Reset the current order first.' }
     const validated = parseProjectFormData(formData)
     if (!validated.success) return { success: false, message: 'Please correct the highlighted fields.', errors: validated.errors }
+    if (!isLocalDemoPreview(validated.project.previewUrl)) return { success: false, message: 'Demo previews stay local. Choose a file or a local asset.', errors: { previewUrl: 'Choose a local file or use a path starting with /assets/.' } }
     if (validated.file) {
       const file = await validatePreviewFile(validated.file)
       if (!file.success) return { success: false, message: file.message, errors: { previewFile: file.message } }
     }
     const current = editor.mode === 'edit' ? byId.get(editor.project.id) : undefined
     const project: DemoProject = {
-      ...validated.project, id: current?.id ?? crypto.randomUUID(), position: current?.position ?? demo.projects.length,
+      ...validated.project, id: current?.id ?? crypto.randomUUID(), position: current?.position ?? 0,
       previewUrl: validated.keepPreview ? current?.previewUrl ?? null : validated.project.previewUrl,
       localPreviewFallback: validated.keepPreview ? current?.localPreviewFallback : undefined,
     }
     if (validated.file) {
-      project.previewUrl = previews.create(validated.file)
+      project.previewUrl = demoPreviewAsset(validated.file) ?? previews.create(validated.file)
       project.localPreviewFallback = current?.previewUrl?.startsWith('blob:') ? current.localPreviewFallback ?? null : current?.previewUrl ?? null
     }
     const next = saveDemoProject(demo, project)
@@ -92,7 +97,7 @@ function DemoWorkspace({ initialProjects }: { initialProjects: AdminProject[] })
       return { success: false, message: 'This demo supports up to 100 projects. Delete a demo project or Reset demo to continue.' }
     }
     commit(next)
-    return { success: true, project }
+    return { success: true, project: next.projects.find(item => item.id === project.id)! }
   }
 
   return (
@@ -135,7 +140,7 @@ function DemoWorkspace({ initialProjects }: { initialProjects: AdminProject[] })
           onDrop={(targetId) => reorder(project.id, { type: 'drop', id: project.id, targetId, blocked: controls.reorderDisabled })}
           onDragChange={(targetId, active) => setDrag(active ? { id: project.id, targetId } : null)} />)}
       </ul> : <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-16 text-center"><h2 className="text-sm font-medium">{normalizedQuery ? 'No projects match your search.' : 'No demo projects yet.'}</h2><p className="mt-2 text-xs text-zinc-500">{normalizedQuery ? 'Try a different title, category or technology.' : 'Add a project or Reset demo to start again.'}</p></div>}
-      {editor && <ProjectFormDialog key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} localOnly onClose={() => setEditor(null)} onSave={saveProject} onSaved={(project) => { setEditor(null); setQuery(''); setNotice(`${project.title} saved in this demo only.`) }} />}
+      {editor && <ProjectFormDialog key={editor.mode === 'edit' ? editor.project.id : 'new'} mode={editor.mode} initialProject={editor.mode === 'edit' ? editor.project : undefined} localOnly prefill={editor.mode === 'add' ? DemoProjectPrefill : undefined} previewTools={DemoPreviewTools} onClose={() => setEditor(null)} onSave={saveProject} onSaved={(project) => { setEditor(null); setQuery(''); setNotice(`${project.title} saved in this demo only.`) }} />}
       {deleting && <ProjectDeleteDialog project={deleting} localOnly onClose={() => setDeleting(null)} onDelete={async (id) => {
         if (controls.crudDisabled) return { success: false, message: 'Save or Reset the current order first.' }
         commit(deleteDemoProject(demo, id))
@@ -144,7 +149,7 @@ function DemoWorkspace({ initialProjects }: { initialProjects: AdminProject[] })
       {resetting && <Dialog compact titleId={`${resetId}-title`} descriptionId={`${resetId}-description`} onClose={() => setResetting(false)}>
         <div className="p-6"><h2 id={`${resetId}-title`} className="text-lg font-semibold">Reset demo?</h2><p id={`${resetId}-description`} className="mt-2 text-sm leading-6 text-zinc-600">Discard your demo projects, edits, previews and order changes? The initial projects will be restored.</p><div className="mt-6 flex flex-wrap justify-end gap-2">
           <button type="button" data-dialog-focus onClick={() => setResetting(false)} className="min-h-10 rounded-md border border-zinc-300 px-4 text-xs font-medium focus-visible:outline-2 focus-visible:outline-zinc-900">Cancel</button>
-          <button type="button" onClick={() => { commit(createDemoState(initialProjects)); setQuery(''); setDrag(null); setResetting(false); setNotice('Demo reset. Initial projects and order restored.') }} className="min-h-10 rounded-md bg-zinc-900 px-4 text-xs font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900">Reset demo</button>
+          <button type="button" onClick={() => { setEditor(null); setDeleting(null); commit(createDemoState(initialProjects)); setQuery(''); setDrag(null); setResetting(false); setNotice('Demo reset. Initial projects and order restored.') }} className="min-h-10 rounded-md bg-zinc-900 px-4 text-xs font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900">Reset demo</button>
         </div></div>
       </Dialog>}
     </section>
